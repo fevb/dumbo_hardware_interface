@@ -1,17 +1,17 @@
 <package>
-  <description brief="dumbo_powercube_chain">
-
-     dumbo_powercube_chain
-
+ <name> dumbo_powercube_chain </name>
+  <version>1.0.0</version>
+  <description>
+    Low level communication and control of Dumbo's manipulators (powercube chains).
   </description>
-  <author>fevb</author>
+  <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
   <license>BSD</license>
-  <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/dumbo_powercube_chain</url>
 
-  <export>
-    <cpp cflags="-I${prefix}/common/include" lflags="-Wl,-rpath,${prefix}/ros/lib -L${prefix}/ros/lib -lpowercube_commands"/>
-  </export>
+  <url>http://ros.org/wiki/dumbo_powercube_chain</url>
+  <author>Francisco Vina</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
 
   <depend package="roscpp"/>
   <depend package="sensor_msgs"/>
@@ -27,6 +27,6 @@
   <depend package="dumbo_srvs"/>
   <depend package="schunk_sdh" />
 
-</package>
 
+</package>
 

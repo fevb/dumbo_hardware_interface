@@ -1,0 +1,20 @@
+<package>
+  <name> dumbo_hardware_interface </name>
+  <version>1.0.0</version>
+  <description>
+    Interface and wrappers for hardware components of Dumbo.
+  </description>
+  <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
+  <license>BSD</license>
+
+  <url>http://ros.org/wiki/dumbo_hardware_interface</url>
+  <author>Francisco Vina</author>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <run_depend>std_msgs</run_depend>
+  <run_depend>message_runtime</run_depend>
+
+  <export>
+    <metapackage/>
+  </export>
+</package>
