@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+  <node ns="left_arm_controller" name="test_movevel" pkg="dumbo_powercube_chain" type="test_movevel" cwd="node" respawn="false" output="screen" >  
+    <rosparam command="load" file="$(find dumbo_hardware_config)/$(env ROBOT)/config/left_lwa.yaml"/>
+  </node>
+
+</launch>

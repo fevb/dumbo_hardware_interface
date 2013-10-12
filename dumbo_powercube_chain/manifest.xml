@@ -1,0 +1,32 @@
+<package>
+  <description brief="dumbo_powercube_chain">
+
+     dumbo_powercube_chain
+
+  </description>
+  <author>fevb</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/dumbo_powercube_chain</url>
+
+  <export>
+    <cpp cflags="-I${prefix}/common/include" lflags="-Wl,-rpath,${prefix}/ros/lib -L${prefix}/ros/lib -lpowercube_commands"/>
+  </export>
+
+  <depend package="roscpp"/>
+  <depend package="sensor_msgs"/>
+  <depend package="control_msgs"/>
+  <depend package="urdf"/>
+  <depend package="pr2_controllers_msgs"/>
+  <depend package="diagnostic_updater"/>
+  <depend package="rostest"/>
+  <depend package="kvaser_canlib"/>
+  <depend package="cob_srvs"/>
+  <depend package="brics_actuator"/>
+  <depend package="diagnostic_msgs"/>
+  <depend package="dumbo_srvs"/>
+  <depend package="schunk_sdh" />
+
+</package>
+
+
