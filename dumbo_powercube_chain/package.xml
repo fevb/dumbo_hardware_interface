@@ -12,20 +12,35 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
+  <build_depend>roscpp</build_depend>
+  <build_depend>cob_srvs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>control_msgs</build_depend>
+  <build_depend>urdf</build_depend>
+  <build_depend>pr2_controllers_msgs</build_depend>
+  <build_depend>diagnostic_updater</build_depend>
+  <build_depend>rostest</build_depend>
+  <build_depend>kvaser_canlib</build_depend>
+  <build_depend>brics_actuator</build_depend>
+  <build_depend>diagnostic_msgs</build_depend>
+  <build_depend>dumbo_srvs</build_depend>
+  <!-- <build_depend>schunk_sdh</build_depend> -->
 
-  <depend package="roscpp"/>
-  <depend package="sensor_msgs"/>
-  <depend package="control_msgs"/>
-  <depend package="urdf"/>
-  <depend package="pr2_controllers_msgs"/>
-  <depend package="diagnostic_updater"/>
-  <depend package="rostest"/>
-  <depend package="kvaser_canlib"/>
-  <depend package="cob_srvs"/>
-  <depend package="brics_actuator"/>
-  <depend package="diagnostic_msgs"/>
-  <depend package="dumbo_srvs"/>
-  <depend package="schunk_sdh" />
+  
+  <run_depend>roscpp</run_depend>
+  <run_depend>cob_srvs</run_depend>  
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>control_msgs</run_depend>
+  <run_depend>urdf</run_depend>
+  <run_depend>pr2_controllers_msgs</run_depend>
+  <run_depend>diagnostic_updater</run_depend>
+  <run_depend>rostest</run_depend>
+  <run_depend>kvaser_canlib</run_depend>
+  <run_depend>brics_actuator</run_depend>
+  <run_depend>diagnostic_msgs</run_depend>
+  <run_depend>dumbo_srvs</run_depend>
+  <!-- <run_depend>schunk_sdh</run_depend> -->
+
 
 
 </package>
