@@ -4,7 +4,7 @@ project(dumbo_powercube_chain)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp cob_srvs sensor_msgs control_msgs urdf pr2_controllers_msgs diagnostic_updater rostest kvaser_canlib brics_actuator diagnostic_msgs dumbo_srvs)
+find_package(catkin REQUIRED COMPONENTS roscpp cob_srvs sensor_msgs control_msgs urdf diagnostic_updater kvaser_canlib brics_actuator diagnostic_msgs dumbo_srvs schunk_sdh)
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS thread)
@@ -49,10 +49,10 @@ find_package(Boost REQUIRED COMPONENTS thread)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES test
-#  CATKIN_DEPENDS dumbo_description
-#  DEPENDS system_lib
+  DEPENDS 
+  CATKIN_DEPENDS cob_srvs sensor_msgs control_msgs urdf diagnostic_updater kvaser_canlib brics_actuator diagnostic_msgs dumbo_srvs schunk_sdh # TODO
+  INCLUDE_DIRS common/include
+  LIBRARIES powercube_commands
 )
 
 ###########
@@ -63,7 +63,9 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
+  common/include
   ${catkin_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
@@ -73,15 +75,23 @@ include_directories(
 add_library(powercube_commands common/src/powercube_commands.c)
 
 ## Declare a cpp executable
-add_executable(dumbo_powercube_chain common/src/PowerCubeCtrl.cpp common/src/TimeStamp.cpp common/src/moveCommand.cpp common/src/powercube_commands_wrapper.cpp common/src/powercube_commands.c common/src/collision.c common/src/dumbo_kinematics.c common/src/homogenic_vectors.c common/src/PG70Gripper.cpp ros/src/pg70_node.cpp ros/src/sdh_node.cpp ros/src/dumbo_powercube_chain.cpp)
+add_executable(${PROJECT_NAME} common/src/PowerCubeCtrl.cpp common/src/TimeStamp.cpp common/src/moveCommand.cpp common/src/powercube_commands_wrapper.cpp common/src/powercube_commands.c common/src/collision.c common/src/dumbo_kinematics.c common/src/homogenic_vectors.c common/src/PG70Gripper.cpp ros/src/pg70_node.cpp ros/src/sdh_node.cpp ros/src/dumbo_powercube_chain.cpp)
+
+add_executable(test_movevel test/test_movevel.cpp)
+add_executable(test_hand test/test_hand.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(dumbo_powercube_chain_sim cob_srvs_gencpp) 
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(dumbo_powercube_chain rt SDHLibrary-CPP canserial_kvaser)
-target_link_libraries(test_hand rt SDHLibrary-CPP canserial_kvaser)
+target_link_libraries(dumbo_powercube_chain rt ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(test_hand rt ${catkin_LIBRARIES}) 
+
+set_target_properties(dumbo_powercube_chain PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DWITH_ESD_CAN -DOSNAME_LINUX")
+set_target_properties(test_hand PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DWITH_ESD_CAN -DOSNAME_LINUX")
+
+
 # target_link_libraries(test_node
 #   ${catkin_LIBRARIES}
 # )
@@ -101,11 +111,11 @@ target_link_libraries(test_hand rt SDHLibrary-CPP canserial_kvaser)
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS test test_node
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/

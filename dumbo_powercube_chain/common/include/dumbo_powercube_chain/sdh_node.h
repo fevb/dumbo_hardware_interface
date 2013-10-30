@@ -20,9 +20,9 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <sensor_msgs/JointState.h>
-//#include <pr2_controllers_msgs/JointTrajectoryAction.h>
+//#include <control_msgs/JointTrajectoryAction.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
-#include <pr2_controllers_msgs/JointTrajectoryControllerState.h>
+#include <control_msgs/JointTrajectoryControllerState.h>
 #include <schunk_sdh/TactileSensor.h>
 #include <schunk_sdh/TactileMatrix.h>
 #include <brics_actuator/JointVelocities.h>
@@ -82,7 +82,7 @@ private:
 
 
 	// actionlib server
-	//actionlib::SimpleActionServer<pr2_controllers_msgs::JointTrajectoryAction> as_;
+	//actionlib::SimpleActionServer<control_msgs::JointTrajectoryAction> as_;
 	actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction> as_;
 	std::string action_name_;
 
