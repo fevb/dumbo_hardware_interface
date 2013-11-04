@@ -24,3 +24,4 @@ msg_gen
 srv_gen
 CMakeLists.txt.user
 *~
+CATKIN_IGNORE

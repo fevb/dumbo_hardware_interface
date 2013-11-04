@@ -40,9 +40,5 @@
   <run_depend>dumbo_srvs</run_depend>
   <run_depend>schunk_sdh</run_depend>
 
-  <export>
-    <cpp cflags="-I${prefix}/common/include"/>
-  </export>
-
 </package>
 
