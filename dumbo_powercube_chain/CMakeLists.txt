@@ -68,6 +68,8 @@ include_directories(
   ${Boost_INCLUDE_DIRS}
 )
 
+link_directories(${catkin_LIBRARY_DIRS})
+
 ## Declare a cpp library
 # add_library(test
 #   src/${PROJECT_NAME}/test.cpp
@@ -85,10 +87,12 @@ add_executable(test_hand test/test_hand.cpp)
 # add_dependencies(dumbo_powercube_chain_sim cob_srvs_gencpp) 
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(dumbo_powercube_chain rt ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(powercube_commands ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} rt ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 target_link_libraries(test_hand rt ${catkin_LIBRARIES}) 
 
-set_target_properties(dumbo_powercube_chain PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DWITH_ESD_CAN -DOSNAME_LINUX")
+set_target_properties(powercube_commands PROPERTIES COMPILE_FLAGS "-D__LINUX__")
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DWITH_ESD_CAN -DOSNAME_LINUX")
 set_target_properties(test_hand PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DWITH_ESD_CAN -DOSNAME_LINUX")
 
 
@@ -111,11 +115,11 @@ set_target_properties(test_hand PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DWITH_ESD
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS ${PROJECT_NAME}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# install(TARGETS ${PROJECT_NAME}
+#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
