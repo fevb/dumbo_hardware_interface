@@ -1,0 +1,28 @@
+<package>
+  <description brief="dumbo_FT_sensor">
+
+     dumbo_FT_sensor
+
+  </description>
+  <author>fevb</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/dumbo_FT_sensor</url>
+  
+  <export>
+    <cpp cflags="-I${prefix}/common/include"/>
+  </export>
+  
+  <depend package="roscpp"/>
+  <depend package="geometry_msgs"/>
+  <depend package="kvaser_canlib"/>
+  <depend package="cob_srvs"/>
+  <depend package="dumbo_powercube_chain"/>
+  <depend package="tf"/>
+  <depend package="dumbo_srvs" />
+  <rosdep name="eigen" />
+  <depend package="sensor_msgs"/>
+
+</package>
+
+
