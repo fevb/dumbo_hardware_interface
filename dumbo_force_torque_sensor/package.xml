@@ -2,7 +2,10 @@
   <name> dumbo_force_torque_sensor </name>
   <version>1.0.0</version>
   <description>
-    Low level communication with Dumbo's wrist mounted ATI mini 45 force-torque sensorsvia Kvaser CAN cards.
+    Low level communication with Dumbo's wrist mounted ATI mini 45 force-torque sensors via Kvaser CAN cards.
+
+    Also includes code for gravity compensation.
+
   </description>
   <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
   <license>BSD</license>

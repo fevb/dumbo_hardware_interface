@@ -33,14 +33,16 @@ set_target_properties(powercube_commands PROPERTIES COMPILE_FLAGS "-D__LINUX__")
 add_executable(${PROJECT_NAME} common/src/PowerCubeCtrl.cpp common/src/TimeStamp.cpp common/src/moveCommand.cpp common/src/powercube_commands_wrapper.cpp common/src/collision.c common/src/dumbo_kinematics.c common/src/homogenic_vectors.c common/src/PG70Gripper.cpp ros/src/pg70_node.cpp ros/src/sdh_node.cpp ros/src/dumbo_powercube_chain.cpp)
 target_link_libraries(${PROJECT_NAME} rt powercube_commands ${SDHLib} ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DWITH_ESD_CAN -DOSNAME_LINUX")
+add_dependencies(${PROJECT_NAME} cob_srvs_gencpp brics_actuator_gencpp schunk_sdh_gencpp dumbo_srvs_gencpp)
 
 add_executable(test_movevel test/test_movevel.cpp)
 target_link_libraries(test_movevel ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+add_dependencies(test_movevel cob_srvs_gencpp brics_actuator_gencpp schunk_sdh_gencpp dumbo_srvs_gencpp)
 
 add_executable(test_hand test/test_hand.cpp)
 target_link_libraries(test_hand rt canlib ${SDHLib} ${catkin_LIBRARIES}  ${Boost_LIBRARIES})
 set_target_properties(test_hand PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DWITH_ESD_CAN -DOSNAME_LINUX")
-
+add_dependencies(test_hand cob_srvs_gencpp brics_actuator_gencpp schunk_sdh_gencpp dumbo_srvs_gencpp)
 
 
 install(TARGETS ${PROJECT_NAME} test_hand test_movevel
