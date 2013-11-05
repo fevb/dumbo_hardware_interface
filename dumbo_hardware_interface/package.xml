@@ -14,11 +14,8 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <run_depend>message_runtime</run_depend>
-  <run_depend>kvaser_canlib</run_depend>
-  <run_depend>dumbo_description</run_depend>
+  <run_depend>dumbo_force_torque_sensor</run_depend>
   <run_depend>dumbo_powercube_chain</run_depend>
-  <run_depend>schunk_sdh</run_depend>
 
   <export>
     <metapackage/>
