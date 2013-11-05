@@ -1,0 +1,37 @@
+<package>
+  <name> dumbo_force_torque_sensor </name>
+  <version>1.0.0</version>
+  <description>
+    Low level communication with Dumbo's wrist mounted ATI mini 45 force-torque sensorsvia Kvaser CAN cards.
+  </description>
+  <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/dumbo_force_torque_sensor</url>
+
+  <author email="fevb@kth.se">Francisco Vina</author>
+  <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  
+  <build_depend>roscpp</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>kvaser_canlib</build_depend>
+  <build_depend>cob_srvs</build_depend>
+  <build_depend>dumbo_powercube_chain</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>dumbo_srvs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+
+
+  <run_depend>roscpp</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>kvaser_canlib</run_depend>
+  <run_depend>cob_srvs</run_depend>
+  <run_depend>dumbo_powercube_chain</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>dumbo_srvs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+
+</package>
