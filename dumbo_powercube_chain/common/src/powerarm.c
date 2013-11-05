@@ -1,5 +1,5 @@
 /*
- * powerarm
+ * powerarm.c
  *
  *  Created on: Dec 2009
  *  Authors:   Christian Smith
