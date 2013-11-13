@@ -116,8 +116,6 @@ public:
 	{
 		geometry_msgs::Wrench ft_raw;
 		geometry_msgs::WrenchStamped ft_raw_stamped;
-		geometry_msgs::WrenchStamped ft_compensated_stamped;
-		geometry_msgs::WrenchStamped ft_compensated_filtered;
 
 		if(m_ft_sensor->isInitialized())
 		{
@@ -168,19 +166,10 @@ int main(int argc, char** argv)
 	ForceTorqueNode ft_sensor_node;
 
 	double loop_frequency;
-	double read_frequency;
 	ft_sensor_node.n_.param("loop_frequency", loop_frequency, 500.0);
-	ft_sensor_node.n_.param("read_frequency", read_frequency, 400.0);
 
 	if(loop_frequency<=0.0)
 		loop_frequency = 500.0;
-
-	if(read_frequency<=0.0)
-			read_frequency = 400.0;
-
-	ros::Time t_last_read = ros::Time::now();
-
-
 
 
 	/// main loop

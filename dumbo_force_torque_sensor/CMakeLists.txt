@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(dumbo_force_torque_sensor)
 
-find_package(catkin REQUIRED COMPONENTS roscpp geometry_msgs kvaser_canlib cob_srvs dumbo_powercube_chain tf sensor_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp geometry_msgs kvaser_canlib cob_srvs dumbo_powercube_chain)
 
 catkin_package(
   DEPENDS eigen
-  CATKIN_DEPENDS geometry_msgs kvaser_canlib cob_srvs dumbo_powercube_chain tf sensor_msgs
+  CATKIN_DEPENDS geometry_msgs kvaser_canlib cob_srvs dumbo_powercube_chain
   INCLUDE_DIRS common/include
   LIBRARIES 
 )
