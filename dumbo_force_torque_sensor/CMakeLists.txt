@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(dumbo_force_torque_sensor)
 
-find_package(catkin REQUIRED COMPONENTS roscpp geometry_msgs kvaser_canlib cob_srvs dumbo_powercube_chain tf dumbo_srvs sensor_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp geometry_msgs kvaser_canlib cob_srvs dumbo_powercube_chain tf sensor_msgs)
 
 catkin_package(
   DEPENDS eigen
-  CATKIN_DEPENDS geometry_msgs kvaser_canlib cob_srvs dumbo_powercube_chain tf dumbo_srvs sensor_msgs
+  CATKIN_DEPENDS geometry_msgs kvaser_canlib cob_srvs dumbo_powercube_chain tf sensor_msgs
   INCLUDE_DIRS common/include
   LIBRARIES 
 )
@@ -25,10 +25,7 @@ set_target_properties(dumbo_force_torque PROPERTIES COMPILE_FLAGS "-D__LINUX__")
 add_executable(getserialnumber test/getserialnumber.cpp common/src/ForceTorqueSensor.cpp common/src/ComunicationCanx.cpp common/src/ft_sensor_function.cpp)
 target_link_libraries(getserialnumber rt canlib ${catkin_LIBRARIES})
 
-add_executable(compensate_test test/compensate_test.cpp  common/src/ForceTorqueSensor.cpp common/src/ComunicationCanx.cpp common/src/ft_sensor_function.cpp)
-target_link_libraries(compensate_test rt canlib ${catkin_LIBRARIES})
-
-install(TARGETS dumbo_force_torque getserialnumber compensate_test
+install(TARGETS dumbo_force_torque getserialnumber
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

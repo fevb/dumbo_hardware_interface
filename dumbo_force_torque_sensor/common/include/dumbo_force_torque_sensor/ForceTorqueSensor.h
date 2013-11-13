@@ -41,22 +41,22 @@
 #include <geometry_msgs/WrenchStamped.h>
 #include <pthread.h>
 #include <dumbo_force_torque_sensor/ft_sensor_function.h>
-#include <tf/transform_listener.h>
 #include <eigen3/Eigen/Core>
-#include <geometry_msgs/Vector3Stamped.h>
 
 
 class ForceTorqueSensor {
 
-	tf::TransformListener tf_listener;
 public:
+	// ArmSelect can be either 'left' or 'right'
 	ForceTorqueSensor(std::string Serial_Number,
-			std::string ArmSelect,
-			std::vector<double> Bias,
-			double EndEffectorMass);
+			std::string ArmSelect);
 
 	virtual ~ForceTorqueSensor();
+
+	// initialize and connect to the sensor
 	bool Init();
+
+	// disconnect from the CAN bus
 	void Disconnect();
 
 	bool isInitialized()
@@ -64,75 +64,23 @@ public:
 		return (m_Initialized);
 	}
 
-	bool Get_FT(geometry_msgs::Wrench &FT_raw);
-
-	std::vector<double> getBias()
-	{
-		return m_Bias;
-	}
-
-	void setBias(const std::vector<double> &Bias)
-	{
-		if(Bias.size()==6)
-		{
-			m_Bias = Bias;
-		}
-
-		else
-		{
-			ROS_ERROR("Incorrect Bias size FT sensor.");
-		}
-
-	}
-
-	bool SetLPFCoeff(const Eigen::Vector3d &a, const Eigen::Vector3d &b);
-	void GetLPFCoeff(Eigen::Vector3d &a, Eigen::Vector3d &b);
-
-	double getEndEffectorMass()
-	{
-		return m_EndEffectorMass;
-	}
-
-	void setEndEffectorMass(double EndEffectorMass)
-	{
-		m_EndEffectorMass = EndEffectorMass;
-	}
-
-	// converts gravity vector to the correct frame
-	bool Compensate(const geometry_msgs::WrenchStamped &FT_measurement_raw,
-			const geometry_msgs::Vector3Stamped &gravity,
-			geometry_msgs::WrenchStamped &FT_measurement_comp);
-
-	// Butterworth 2nd order Low Pass Filter
-	bool LPF(const geometry_msgs::WrenchStamped &FT_measurement,
-			geometry_msgs::WrenchStamped &filtered_FT_measurement);
-
-	geometry_msgs::Vector3 cross(const geometry_msgs::Vector3 &vec1,
-			const geometry_msgs::Vector3 &vec2);
-
-	bool calibrateBias(unsigned int number_measurements, const geometry_msgs::Vector3Stamped &gravity);
+	// get the raw F/T measurement
+	bool Get_ft(geometry_msgs::Wrench &ft_raw);
 
 protected:
 	pthread_mutex_t m_CAN_mutex;
-
-	std::string m_SerialNumber;
-	std::string m_ArmSelect;
-	std::string m_sensor_frame_id;
 	canHandle m_DeviceHandle;
 	int m_CAN_Channel;
 	bool m_Initialized;
 	bool m_CANDeviceOpened;
 
+
+	std::string m_SerialNumber;
+	std::string m_ArmSelect;
+	std::string m_sensor_frame_id;
+
+
 	float m_Calibration_Matrix[6][6];
-	std::vector<double> m_Bias;
-
-	tf::TransformListener *m_tf_listener;
-	double m_EndEffectorMass;
-
-	// LPF coefficients
-	Eigen::Vector3d m_b;
-	Eigen::Vector3d m_a;
-
 };
 
 #endif /* FORCETORQUESENSOR_H_ */
