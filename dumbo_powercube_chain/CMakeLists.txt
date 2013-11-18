@@ -26,7 +26,7 @@ set(SDHLib ${PROJECT_SOURCE_DIR}/../../schunk_sdh/common/lib/kvaser_x86_64/libSD
 
 
 add_library(powercube_commands common/src/powercube_commands.c)
-target_link_libraries(powercube_commands canlib ${catkin_LIBRARIES})
+target_link_libraries(powercube_commands ${catkin_LIBRARIES})
 set_target_properties(powercube_commands PROPERTIES COMPILE_FLAGS "-D__LINUX__")
 
 
@@ -40,7 +40,7 @@ target_link_libraries(test_movevel ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 add_dependencies(test_movevel cob_srvs_gencpp brics_actuator_gencpp schunk_sdh_gencpp dumbo_srvs_gencpp)
 
 add_executable(test_hand test/test_hand.cpp)
-target_link_libraries(test_hand rt canlib ${SDHLib} ${catkin_LIBRARIES}  ${Boost_LIBRARIES})
+target_link_libraries(test_hand rt ${SDHLib} ${catkin_LIBRARIES}  ${Boost_LIBRARIES})
 set_target_properties(test_hand PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DWITH_ESD_CAN -DOSNAME_LINUX")
 add_dependencies(test_hand cob_srvs_gencpp brics_actuator_gencpp schunk_sdh_gencpp dumbo_srvs_gencpp)
 
