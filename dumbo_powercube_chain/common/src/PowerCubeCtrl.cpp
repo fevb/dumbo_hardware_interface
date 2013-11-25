@@ -566,20 +566,20 @@ bool PowerCubeCtrl::MoveVel(const std::vector<double>& vel)
 
 
 	// scale down velocities to comply with max velocity limits
-	double scale = 1;
+	double scale = 1.0;
 	double scale_temp;
 	for(unsigned int i=0; i<DOF; i++)
 	{
 		if(velocities[i] > maxVels[i])
 		{
-			scale_temp  = velocities[i]/maxVels[i];
-			if((scale_temp > 0) && (scale_temp > scale)) scale = scale_temp;
+			scale_temp  = (double)velocities[i]/(double)maxVels[i];
+			if((scale_temp > 0.0) && (scale_temp > scale)) scale = scale_temp;
 		}
 
-		if(velocities[i]*-1.0 > maxVels[i])
+		else if(velocities[i]*-1.0 > maxVels[i])
 		{
-			scale_temp = -1.0*(velocities[i]/maxVels[i]);
-			if((scale_temp > 0) && (scale_temp > scale)) scale = scale_temp;
+			scale_temp = -1.0*((double)velocities[i]/(double)maxVels[i]);
+			if((scale_temp > 0.0) && (scale_temp > scale)) scale = scale_temp;
 		}
 	}
 
@@ -589,7 +589,7 @@ bool PowerCubeCtrl::MoveVel(const std::vector<double>& vel)
 	std::vector<double> scaled_velocities = velocities;
 	for(unsigned int i=0; (i<DOF) && (scale>1); i++)
 	{
-		scaled_velocities[i] = scaled_velocities[i]/scale;
+		scaled_velocities[i] = (double)scaled_velocities[i]/(double)scale;
 	}
 
 
@@ -605,31 +605,33 @@ bool PowerCubeCtrl::MoveVel(const std::vector<double>& vel)
 
 
 	// check for velocity limits
-	for (unsigned int i = 0; i < DOF; i++)
-	{
-
-		/// check velocity limit
-		if(scaled_velocities[i] > maxVels[i])
-		{
-			// set velocities command to max value
-			scaled_velocities[i] = maxVels[i];
-
-			//TODO: add ros_warn
-
-			ROS_INFO("Velocity %f exceeds limit %f for joint %i. moving with max velocity %f instead", velocities[i], maxVels[i], i+1, maxVels[i]);
-		}
-
-		if(scaled_velocities[i]*-1.0 > maxVels[i])
-		{
-			// set velocities command to max value
-			scaled_velocities[i] = -1.0*maxVels[i];
-
-			//TODO: add ros_warn
-
-			ROS_INFO("Velocity %f exceeds limit %f for joint %i. moving with max velocity %f instead", velocities[i], -1.0*maxVels[i], i+1, -1.0*maxVels[i]);
-		}
-
-	}
+//	for (unsigned int i = 0; i < DOF; i++)
+//	{
+//
+//		/// check velocity limit
+//		if(scaled_velocities[i] > maxVels[i])
+//		{
+//			// set velocities command to max value
+//			scaled_velocities[i] = maxVels[i];
+//
+//			//TODO: add ros_warn
+//
+//			ROS_INFO("Velocity %f exceeds limit %f for joint %i. moving with max velocity %f instead", scaled_velocities[i], maxVels[i], i+1, maxVels[i]);
+//			ROS_INFO("Scale: %f", scale);
+//		}
+//
+//		else if(scaled_velocities[i]*-1.0 > maxVels[i])
+//		{
+//			// set velocities command to max value
+//			scaled_velocities[i] = -1.0*maxVels[i];
+//
+//			//TODO: add ros_warn
+//
+//			ROS_INFO("Velocity %f exceeds limit %f for joint %i. moving with max velocity %f instead", scaled_velocities[i], -1.0*maxVels[i], i+1, -1.0*maxVels[i]);
+//			ROS_INFO("Scale: %f", scale);
+//		}
+//
+//	}
 
 	//check for acceleration limits and scale
 	//todo
