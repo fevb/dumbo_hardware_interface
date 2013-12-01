@@ -1,9 +1,10 @@
 dumbo_hardware_interface
 ========================
-
+Overview
+-----------------------------------
 ROS interface and wrappers for hardware components of Dumbo.
 
-For bringin up the robot manipulator + sensors please look at the dumbo_bringup package.
+For bringing up Dumbo components in ROS please look at the **dumbo_bringup** package.
 
 
 dumbo_powercube_chain
