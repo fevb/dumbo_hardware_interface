@@ -779,24 +779,28 @@ bool PowerCubeCtrl::MoveVel(const std::vector<double>& vel)
 void PowerCubeCtrl::updateVelocities(std::vector<double> pos_temp, double delta_t)
 {
 	unsigned int DOF = m_params->GetDOF();
-	if(m_cached_pos.size() < 4)
-	{
-		m_cached_pos.push_back(pos_temp);
 
-		for(unsigned int i = 0; i < DOF; i++)
-		{
-			m_velocities[i] = 0.0;
-		}
-	}
-	else
+	if (m_cached_pos.empty())
 	{
-		m_cached_pos.push_back(pos_temp);
-		m_cached_pos.pop_front();
-		for(unsigned int i = 0; i < DOF; i++)
-		{
-			m_velocities[i] = 1/(6*delta_t) * (-m_cached_pos[0][i]-(3*m_cached_pos[1][i])+(3*m_cached_pos[2][i])+m_cached_pos[3][i]);
-			//m_velocities[i] = (m_cached_pos[3][i] - m_cached_pos[2][i])/delta_t;
-		}
+		std::vector<double> null;
+		for (unsigned int i=0;i<DOF;i++){	null.push_back(0); }
+
+		m_cached_pos.push_back(null);
+		m_cached_pos.push_back(null);
+		m_cached_pos.push_back(null);
+		m_cached_pos.push_back(null);
+	}
+
+	m_cached_pos.push_back(pos_temp);
+	m_cached_pos.pop_front();
+
+	std::vector<double> last_pos = m_cached_pos.front();
+
+	for(unsigned int i = 0; i < DOF; i++)
+	{
+		m_velocities[i] = 1/(6*delta_t) * (-m_cached_pos[0][i]-(3*m_cached_pos[1][i])+(3*m_cached_pos[2][i])+m_cached_pos[3][i]);
+		//m_velocities[i] = (m_cached_pos[3][i] - m_cached_pos[2][i])/delta_t;
+		//m_velocities[i] = (pos_temp.at(i)-last_pos.at(i))/delta_t;
 	}
 }
 
