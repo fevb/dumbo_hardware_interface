@@ -173,7 +173,7 @@ bool PG70Gripper::Init()
 
 			// Min pos
 			pthread_mutex_lock(&m_mutex);
-			ret = PCube_setMinPos(m_DeviceHandle, ModulIDs[i], (LowerLimits[i])*2.0);
+            ret = PCube_setMinPos(m_DeviceHandle, ModulIDs[i], (LowerLimits[i]));
 			pthread_mutex_unlock(&m_mutex);
 			if(ret<0)
 			{
@@ -183,7 +183,7 @@ bool PG70Gripper::Init()
 
 			// Max pos
 			pthread_mutex_lock(&m_mutex);
-			ret = PCube_setMaxPos(m_DeviceHandle, ModulIDs[i], (UpperLimits[i])*2.0);
+            ret = PCube_setMaxPos(m_DeviceHandle, ModulIDs[i], (UpperLimits[i]));
 			pthread_mutex_unlock(&m_mutex);
 			if(ret<0)
 			{
@@ -213,7 +213,7 @@ bool PG70Gripper::Init()
 				ROS_ERROR("Error getting gripper pos of %s arm.", (m_params->GetArmSelect().c_str()));
 				return false;
 			}
-			m_positions[i] = (((double)gripper_pos)/2.0);
+            m_positions[i] = (((double)gripper_pos));
 
 			//get gripper Max current
 			float MaxCurrent;
@@ -359,7 +359,7 @@ bool PG70Gripper::updateStates()
 			ROS_ERROR("Error getting gripper pos of %s arm.", (m_params->GetArmSelect().c_str()));
 			return false;
 		}
-		m_positions[i] = (((double)gripper_pos)/2.0);
+        m_positions[i] = (((double)gripper_pos));
 		m_status[i] = state;
 		m_dios[i] = dio;
 	}
@@ -372,23 +372,22 @@ bool PG70Gripper::MovePos(double target_pos)
 	PCTRL_CHECK_INITIALIZED();
 	int ret = 0;
 	float gripper_pos;
-	double UpperLimit = (m_params->GetUpperLimits().at(0))*2.0;
-	double LowerLimit = (m_params->GetLowerLimits().at(0))*2.0;
-	double target_pos_conv = target_pos*2.0; // converts target pos
+    double UpperLimit = m_params->GetUpperLimits().at(0);
+    double LowerLimit = m_params->GetLowerLimits().at(0);
 	unsigned long int status;
 
 	if(!DoHoming())
 	{
 		return false;
 	}
-	if((target_pos_conv < UpperLimit) &&  (target_pos_conv > LowerLimit))
+    if((target_pos < UpperLimit) &&  (target_pos > LowerLimit))
 	{
 
 		pthread_mutex_lock(&m_mutex);
-		ret = PCube_moveModulePos(m_DeviceHandle, m_params->GetModuleID(0), (float)target_pos_conv,
+        ret = PCube_moveModulePos(m_DeviceHandle, m_params->GetModuleID(0), (float)target_pos,
 				&status, &m_dios[0], &gripper_pos);
 		pthread_mutex_unlock(&m_mutex);
-		m_positions[0] = ((double)gripper_pos)/2.0;
+        m_positions[0] = ((double)gripper_pos);
 	}
 
 	else
@@ -526,7 +525,7 @@ bool PG70Gripper::DoHoming()
 
 			// Min pos
 			pthread_mutex_lock(&m_mutex);
-			ret = PCube_setMinPos(m_DeviceHandle, ModulIDs[i], (LowerLimits[i])*2.0);
+            ret = PCube_setMinPos(m_DeviceHandle, ModulIDs[i], (LowerLimits[i]));
 			pthread_mutex_unlock(&m_mutex);
 			if(ret<0)
 			{
@@ -536,7 +535,7 @@ bool PG70Gripper::DoHoming()
 
 			// Max pos
 			pthread_mutex_lock(&m_mutex);
-			ret = PCube_setMaxPos(m_DeviceHandle, ModulIDs[i], (UpperLimits[i])*2.0);
+            ret = PCube_setMaxPos(m_DeviceHandle, ModulIDs[i], (UpperLimits[i]));
 			pthread_mutex_unlock(&m_mutex);
 			if(ret<0)
 			{
@@ -566,7 +565,7 @@ bool PG70Gripper::DoHoming()
 				ROS_ERROR("Error getting gripper pos of %s arm.", (m_params->GetArmSelect().c_str()));
 				return false;
 			}
-			m_positions[i] = (((double)gripper_pos)/2.0);
+            m_positions[i] = (((double)gripper_pos));
 
 			//get gripper Max current
 			float MaxCurrent;

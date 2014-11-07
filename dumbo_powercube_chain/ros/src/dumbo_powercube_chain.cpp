@@ -779,7 +779,7 @@ public:
 		  control_msgs::JointTrajectoryControllerState controller_state_msg;
 		  controller_state_msg.header.stamp = joint_state_msg.header.stamp;
 		  controller_state_msg.joint_names = pc_params_->GetJointNames();
-		  controller_state_msg.actual.positions = pc_ctrl_->getPositions();
+          controller_state_msg.actual.positions = pc_ctrl_->getPositions();
 		  controller_state_msg.actual.velocities = pc_ctrl_->getVelocities();
 		  controller_state_msg.actual.accelerations = pc_ctrl_->getAccelerations();
 
@@ -948,8 +948,7 @@ int main(int argc, char** argv)
 
 		if ((ros::Time::now() - pc_node.last_publish_time_) >= min_publish_duration)
 		{
-			pc_node.publishState();
-			ros::Duration(0.001).sleep();
+            pc_node.publishState();
 			// only update the grippers if the arm is not being controlled
 			if(pc_node.gripper_=="PG70")
 			{

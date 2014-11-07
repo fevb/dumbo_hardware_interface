@@ -239,10 +239,10 @@ void PG70Node::getRobotDescriptionParameters()
 	  for(unsigned int i=0; i<JointNames.size(); i++ )
 	  {
 		  // Get gripper lower limit
-		  LowerLimits[i] = model.getJoint(JointNames[i].c_str())->limits->lower;
+          LowerLimits[i] = model.getJoint(JointNames[i].c_str())->limits->lower*2.0;
 
 		  // Get gripper upper limit
-		  UpperLimits[i] = model.getJoint(JointNames[i].c_str())->limits->upper;
+          UpperLimits[i] = model.getJoint(JointNames[i].c_str())->limits->upper*2.0;
 
 		  // Get gripper max vel
 		  MaxVel[i] = model.getJoint(JointNames[i].c_str())->limits->velocity;
@@ -467,7 +467,7 @@ void PG70Node::publishState(bool update)
 		for(unsigned int i=0; i<JointNames.size(); i++)
 		{
 			joint_state_msg.name.push_back(JointNames[i].c_str());
-			joint_state_msg.position.push_back(pg70_ctrl_->getPositions().at(0));
+            joint_state_msg.position.push_back(pg70_ctrl_->getPositions().at(0)/2.0);
 			joint_state_msg.velocity.push_back(0);
 		}
 
