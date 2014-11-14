@@ -47,7 +47,8 @@ PG70Node::PG70Node(std::string name) {
 	pg70_ctrl_ = new PG70Gripper(pg70_params_);
 
 	topicPub_JointState_ = n_.advertise<sensor_msgs::JointState> ("/joint_states", 1);
-	topicSub_CommandPos_ = n_.subscribe("command_pos", 1, &PG70Node::topicCallback_CommandPos, this);
+    topicSub_CommandPos_ = n_.subscribe("command_pos", 1, &PG70Node::topicCallbackCommandPos, this);
+    topicSub_CommandVel_ = n_.subscribe("command_vel", 1, &PG70Node::topicCallbackCommandVel, this);
 
 	srvServer_Init_ = n_.advertiseService("init", &PG70Node::srvCallback_Init, this);
     srvServer_Disconnect_ = n_.advertiseService("disconnect", &PG70Node::srvCallback_Disconnect, this);
@@ -427,7 +428,7 @@ void PG70Node::topicCallbackCommandPos(const brics_actuator::JointPositions::Con
 
 }
 
-void PG70Node::topicCallbackCommandVel(const brics_actuator::JointVelocities_::ConstPtr &msg)
+void PG70Node::topicCallbackCommandVel(const brics_actuator::JointVelocities::ConstPtr &msg)
 {
     if (initialized_ && (pg70_params_->GetDOF()>0))
     {

@@ -87,6 +87,7 @@ private:
 
 	ros::Publisher topicPub_JointState_;
 	ros::Subscriber topicSub_CommandPos_;
+    ros::Subscriber topicSub_CommandVel_;
 
 	ros::ServiceServer srvServer_Init_;
     ros::ServiceServer srvServer_Disconnect_;

@@ -420,7 +420,7 @@ bool PG70Gripper::MoveVel(double target_vel)
     double target_pos_horizon, delta_pos, delta_pos_horizon;
 
 
-    delta_t = ros::Time::now() - m_last_time_pub.toSec();
+    delta_t = ros::Time::now().toSec() - m_last_time_pub.toSec();
     m_last_time_pub = ros::Time::now();
 
 
