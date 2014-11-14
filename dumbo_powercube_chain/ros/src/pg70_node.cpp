@@ -367,7 +367,7 @@ bool PG70Node::srvCallback_Recover(cob_srvs::Trigger::Request &req,
  * Set the current position target.
  * \param msg JointPositions
  */
-void PG70Node::topicCallback_CommandPos(const brics_actuator::JointPositions::ConstPtr& msg)
+void PG70Node::topicCallbackCommandPos(const brics_actuator::JointPositions::ConstPtr& msg)
 {
 	// ROS_WARN("Received new position command. Skipping command: Position commands currently not implemented");
 	ROS_DEBUG("Received new gripper position command");
@@ -379,7 +379,7 @@ void PG70Node::topicCallback_CommandPos(const brics_actuator::JointPositions::Co
 
 		std::vector<std::string> JointNames = pg70_params_->GetJointNames();
 		double cmd_gripper_pos;
-		std::string unit = "mm";
+        std::string unit = "m";
 
 
 		/// parse positions
@@ -399,7 +399,7 @@ void PG70Node::topicCallback_CommandPos(const brics_actuator::JointPositions::Co
 
 		/// if all checks are successful, parse the position value for the gripper
 		ROS_DEBUG("Parsing position %f for joint %s",msg->positions[0].value, JointNames[0].c_str());
-		cmd_gripper_pos = msg->positions[0].value/1000;
+        cmd_gripper_pos = msg->positions[0].value;
 
 
 		/// command position to gripper
@@ -424,6 +424,63 @@ void PG70Node::topicCallback_CommandPos(const brics_actuator::JointPositions::Co
 	{
 		ROS_ERROR("Skipping gripper positions command: no gripper on %s arm.", (pg70_params_->GetArmSelect()).c_str());
 	}
+
+}
+
+void PG70Node::topicCallbackCommandVel(const brics_actuator::JointVelocities_::ConstPtr &msg)
+{
+    if (initialized_ && (pg70_params_->GetDOF()>0))
+    {
+        //		  PowerCubeCtrl::PC_CTRL_STATUS status;
+        //		  std::vector<std::string> errorMessages;
+        //		  pc_ctrl_->getStatus(status, errorMessages);
+
+        std::vector<std::string> JointNames = pg70_params_->GetJointNames();
+        double cmd_gripper_vel;
+        std::string unit = "m/s";
+
+
+        /// parse velocity
+        /// check joint name
+        if (msg->velocities[0].joint_uri != JointNames[0])
+        {
+            ROS_ERROR("Skipping command: Received gripper joint name %s doesn't match expected joint name %s.",
+                        msg->velocities[0].joint_uri.c_str(), JointNames[0].c_str());
+            return;
+        }
+
+        /// check unit
+        if (msg->velocities[0].unit != unit)
+        {
+            ROS_ERROR("Skipping command: Received unit %s doesn't match expected unit %s.", msg->velocities[0].unit.c_str(), unit.c_str());
+            return;
+        }
+
+        /// if all checks are successful, parse the position value for the gripper
+        ROS_DEBUG("Parsing position %f for joint %s", msg->velocities[0].value, JointNames[0].c_str());
+        cmd_gripper_vel = msg->velocities[0].value;
+
+
+        /// command velocity to gripper
+        if (!pg70_ctrl_->MoveVel(cmd_gripper_vel))
+        {
+            ROS_ERROR("Error executing gripper velocity command in %s arm.", (pg70_params_->GetArmSelect()).c_str());
+            return;
+        }
+        publishState(false);
+        ROS_DEBUG("Executed gripper position command");
+    }
+
+    else if (!initialized_)
+    {
+        ROS_WARN("Skipping gripper position command: no gripper or not initialized");
+    }
+
+    else if (pg70_params_->GetDOF()==0)
+    {
+        ROS_ERROR("Skipping gripper positions command: no gripper on %s arm.", (pg70_params_->GetArmSelect()).c_str());
+    }
+
 
 }
 

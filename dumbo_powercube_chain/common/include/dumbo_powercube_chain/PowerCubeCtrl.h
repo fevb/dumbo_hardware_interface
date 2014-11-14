@@ -149,7 +149,7 @@ public:
 	/*!
 	 * \brief Moves all cubes by the given velocities
 	 */
-	bool MoveVel(const std::vector<double>& velocities);
+    virtual bool MoveVel(const std::vector<double>& velocities);
 
 	void updateVelocities(std::vector<double> pos_temp, double delta_t);
 

@@ -43,6 +43,7 @@
 #include <dumbo_srvs/ClosePG70Gripper.h>
 #include <cob_srvs/Trigger.h>
 #include <brics_actuator/JointPositions.h>
+#include <brics_actuator/JointVelocities.h>
 
 // Requires the LWA to be initialized first...
 
@@ -69,7 +70,8 @@ public:
 
 	bool srvCallback_Recover(cob_srvs::Trigger::Request &req, cob_srvs::Trigger::Response &res );
 
-	void topicCallback_CommandPos(const brics_actuator::JointPositions::ConstPtr& msg);
+    void topicCallbackCommandPos(const brics_actuator::JointPositions::ConstPtr& msg);
+    void topicCallbackCommandVel(const brics_actuator::JointVelocities::ConstPtr &msg);
 
 	bool srvCallback_CloseGripper(dumbo_srvs::ClosePG70Gripper::Request &req, dumbo_srvs::ClosePG70Gripper::Response &res);
 

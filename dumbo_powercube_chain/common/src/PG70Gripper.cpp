@@ -392,7 +392,7 @@ bool PG70Gripper::MovePos(double target_pos)
 
 	else
 	{
-		ROS_ERROR("Gripper position outside limits: %f [mm]", target_pos_conv*1000.0);
+        ROS_ERROR("Gripper position outside limits: %f [mm]", target_pos*1000.0);
 		return false;
 	}
 
@@ -402,6 +402,75 @@ bool PG70Gripper::MovePos(double target_pos)
 	}
 	m_motion = true;
 	return true;
+}
+
+bool PG70Gripper::MoveVel(double target_vel)
+{
+    PCTRL_CHECK_INITIALIZED();
+    int ret = 0;
+    float gripper_pos;
+    double UpperLimit = m_params->GetUpperLimits().at(0);
+    double LowerLimit = m_params->GetLowerLimits().at(0);
+    unsigned long int status;
+
+    double horizon = 0.002;
+    double delta_t, target_time, target_time_horizon;
+    unsigned short time4motion;
+
+    double target_pos_horizon, delta_pos, delta_pos_horizon;
+
+
+    delta_t = ros::Time::now() - m_last_time_pub.toSec();
+    m_last_time_pub = ros::Time::now();
+
+
+    if (delta_t >= 0.050)
+    {
+        target_time = 0.050; //sec
+    }
+    else
+    {
+        target_time = delta_t;
+    }
+
+    target_time_horizon = target_time + horizon;
+
+    time4motion = (unsigned short)((target_time_horizon)*1000.0);
+
+
+    delta_pos_horizon = target_time_horizon*target_vel;
+    target_pos_horizon = m_positions[0] + delta_pos_horizon;
+    delta_pos = target_time*target_vel;
+
+    if((target_pos_horizon < UpperLimit) &&  (target_pos_horizon > LowerLimit))
+    {
+
+        pthread_mutex_lock(&m_mutex);
+        ret = PCube_moveStepExtended(m_DeviceHandle,
+                                     m_params->GetModuleID(0),
+                                     (float)target_pos_horizon,
+                                     time4motion,
+                                     &status,
+                                     &m_dios[0],
+                                     &gripper_pos);
+
+        pthread_mutex_unlock(&m_mutex);
+        m_positions[0] = ((double)gripper_pos);
+    }
+
+    else
+    {
+        ROS_ERROR("Gripper position outside limits in velocity command: %f [mm]", target_pos_horizon*1000.0);
+        return false;
+    }
+
+    if(ret<0)
+    {
+        return false;
+    }
+
+    m_motion = true;
+    return true;
 }
 
 bool PG70Gripper::CloseGripper(double target_vel, double current_limit)

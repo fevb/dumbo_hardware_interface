@@ -70,6 +70,8 @@ public:
 
 	bool MovePos(double target_pos);
 
+    bool MoveVel(double target_vel);
+
 	bool CloseGripper(double target_vel, double current_limit);
 
 	double getMaxCurrent()
