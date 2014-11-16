@@ -940,6 +940,26 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
+
+    // read encoder values and publish the joint states before going
+    // to the main loop
+    for(unsigned int i=0; i<40; i++)
+    {
+        pc_node.publishState(true);
+
+        if(pc_node.gripper_=="PG70")
+        {
+            pg70_node->publishState(true);
+        }
+        else if(pc_node.gripper_=="sdh")
+        {
+            sdh_node->updateSdh(true);
+        }
+        ros::Duration(0.05).sleep();
+    }
+
+
+
 	/// main loop
 	ros::Rate loop_rate(frequency); // Hz
 	while (pc_node.n_.ok())
@@ -948,15 +968,15 @@ int main(int argc, char** argv)
 
 		if ((ros::Time::now() - pc_node.last_publish_time_) >= min_publish_duration)
 		{
-            pc_node.publishState();
+            pc_node.publishState(false);
 			// only update the grippers if the arm is not being controlled
 			if(pc_node.gripper_=="PG70")
 			{
-				pg70_node->publishState(true);
+                pg70_node->publishState(false);
 			}
 			else if(pc_node.gripper_=="sdh")
 			{
-				sdh_node->updateSdh(true);
+                sdh_node->updateSdh(false);
 			}
 		}
 
