@@ -343,7 +343,16 @@ public:
     	gripper_ = "none";
     }
 
+    // initialize joint state messages
+    unsigned int dof = pc_params_->GetDOF();
+    joint_state_msg_.name = pc_params_->GetJointNames();
+    joint_state_msg_.position = std::vector<double>(dof, 0.0);
+    joint_state_msg_.velocity = std::vector<double>(dof, 0.0);
 
+    controller_state_msg_.joint_names = pc_params_->GetJointNames();
+    controller_state_msg_.actual.positions = std::vector<double>(dof, 0.0);
+    controller_state_msg_.actual.velocities = std::vector<double>(dof, 0.0);
+    controller_state_msg_.actual.accelerations = std::vector<double>(dof, 0.0);
   }
 
   /*!
@@ -411,7 +420,7 @@ public:
 	  }
 	  ROS_DEBUG("Got upper limits");
 
-	  /// Get offsets out of urdf model
+      /// Get offsets out of urdf model
 	  std::vector<double> Offsets(DOF);
 	  for (unsigned int i = 0; i < DOF; i++)
 	  {
@@ -769,30 +778,26 @@ public:
 			  ROS_DEBUG("Updated arm");
 		  }
 
-		  sensor_msgs::JointState joint_state_msg;
-		  joint_state_msg.header.stamp = ros::Time::now();
-		  joint_state_msg.name = pc_params_->GetJointNames();
-		  joint_state_msg.position = pc_ctrl_->getPositions();
-		  joint_state_msg.velocity = pc_ctrl_->getVelocities();
+          joint_state_msg_.header.stamp = ros::Time::now();
+          joint_state_msg_.position = pc_ctrl_->getPositions();
+          joint_state_msg_.velocity = pc_ctrl_->getVelocities();
 
 
-		  control_msgs::JointTrajectoryControllerState controller_state_msg;
-		  controller_state_msg.header.stamp = joint_state_msg.header.stamp;
-		  controller_state_msg.joint_names = pc_params_->GetJointNames();
-          controller_state_msg.actual.positions = pc_ctrl_->getPositions();
-		  controller_state_msg.actual.velocities = pc_ctrl_->getVelocities();
-		  controller_state_msg.actual.accelerations = pc_ctrl_->getAccelerations();
+          controller_state_msg_.header.stamp = joint_state_msg_.header.stamp;
+          controller_state_msg_.actual.positions = pc_ctrl_->getPositions();
+          controller_state_msg_.actual.velocities = pc_ctrl_->getVelocities();
+          controller_state_msg_.actual.accelerations = pc_ctrl_->getAccelerations();
 
 		  std_msgs::String opmode_msg;
 		  // opmode_msg.data = "velocity";
 		  opmode_msg.data = operation_mode_;
 
 		  /// publishing joint and controller states on topic
-		  topicPub_JointState_.publish(joint_state_msg);
-		  topicPub_ControllerState_.publish(controller_state_msg);
+          topicPub_JointState_.publish(joint_state_msg_);
+          topicPub_ControllerState_.publish(controller_state_msg_);
 		  topicPub_OperationMode_.publish(opmode_msg);
 
-		  last_publish_time_ = joint_state_msg.header.stamp;
+          last_publish_time_ = joint_state_msg_.header.stamp;
 
 	  }
 
@@ -859,6 +864,10 @@ public:
 	  ROS_DEBUG("Diagnostics published");
 
   }
+
+private:
+  sensor_msgs::JointState joint_state_msg_;
+  control_msgs::JointTrajectoryControllerState controller_state_msg_;
 
 }; //PowerCubeChainNode
 

@@ -36,8 +36,6 @@
 #include <dumbo_powercube_chain/pg70_node.h>
 #include <urdf/model.h>
 #include <string>
-#include <sensor_msgs/JointState.h>
-#include <control_msgs/JointTrajectoryControllerState.h>
 #include <diagnostic_msgs/DiagnosticArray.h>
 
 PG70Node::PG70Node(std::string name) {
@@ -48,6 +46,7 @@ PG70Node::PG70Node(std::string name) {
 	pg70_ctrl_ = new PG70Gripper(pg70_params_);
 
 	topicPub_JointState_ = n_.advertise<sensor_msgs::JointState> ("/joint_states", 1);
+    topicPub_ControllerState_ = n_.advertise<control_msgs::JointTrajectoryControllerState>("/controller_state", 1);
     topicSub_CommandPos_ = n_.subscribe("command_pos", 1, &PG70Node::topicCallbackCommandPos, this);
     topicSub_CommandVel_ = n_.subscribe("command_vel", 1, &PG70Node::topicCallbackCommandVel, this);
 
@@ -188,14 +187,14 @@ void PG70Node::getROSParameters()
     pg70_params_->SetMaxAcc(MaxAccelerations);
     pg70_params_->SetSerialNumber((unsigned long int) SerialNumber);
 
-    // initialize messages for publishing state
-    unsigned int n_joints = pg70_params_->GetJointNames().size();
+    // initialize joint state messages
+    unsigned int n_ros_joints = pg70_params_->GetJointNames().size();
     joint_state_msg_.name = pg70_params_->GetJointNames();
-    joint_state_msg_.position = std::vector<double>(n_joints, 0.0);
-    joint_state_msg_.velocity = std::vector<double>(n_joints, 0.0);
+    joint_state_msg_.position = std::vector<double>(n_ros_joints, 0.0);
+    joint_state_msg_.velocity = std::vector<double>(n_ros_joints, 0.0);
 
     unsigned int dof = pg70_params_->GetDOF();
-    controller_state_msg_.joint_names = std::vector<std::string>(dof, "gripper_opening");
+    controller_state_msg_.joint_names = std::vector<std::string>(dof, "pg70");
     controller_state_msg_.actual.positions = std::vector<double>(dof, 0.0);
     controller_state_msg_.actual.velocities = std::vector<double>(dof, 0.0);
     controller_state_msg_.actual.accelerations = std::vector<double>(dof, 0.0);
@@ -528,27 +527,21 @@ void PG70Node::publishState(bool update)
 			ROS_DEBUG("Updated PG70 gripper");
 		}
 
-		sensor_msgs::JointState joint_state_msg;
-		joint_state_msg.header.stamp = ros::Time::now();
-
-		std::vector<std::string> JointNames = pg70_params_->GetJointNames();
-		for(unsigned int i=0; i<JointNames.size(); i++)
-		{
-			joint_state_msg.name.push_back(JointNames[i].c_str());
-            joint_state_msg.position.push_back(pg70_ctrl_->getPositions().at(0)/2.0);
-			joint_state_msg.velocity.push_back(0);
+        joint_state_msg_.header.stamp = ros::Time::now();
+        unsigned int n_ros_joints = pg70_params_->GetJointNames().size();
+        for(unsigned int i=0; i<n_ros_joints; i++)
+        {
+            joint_state_msg_.position[i] = pg70_ctrl_->getPositions().at(0)/2.0;
 		}
 
-		/// publishing joint and controller states on topic
-		topicPub_JointState_.publish(joint_state_msg);
+        // controller state message
+        controller_state_msg_.header.stamp = joint_state_msg_.header.stamp;
+        controller_state_msg_.actual.positions[0] = pg70_ctrl_->getPositions().at(0);
 
-        // publish controller state message
-        control_msgs::JointTrajectoryControllerState controller_state_msg;
-        controller_state_msg.header.stamp = joint_state_msg.header.stamp;
-        controller_state_msg.joint_names.push_back(JointNames[0].c_str());
-
-
-        last_publish_time_ = joint_state_msg.header.stamp;
+        // publish joint and controller states
+        topicPub_JointState_.publish(joint_state_msg_);
+        topicPub_ControllerState_.publish(controller_state_msg_);
+        last_publish_time_ = joint_state_msg_.header.stamp;
 	}
 
 	// if not initialized publish zero angle + vel messages
