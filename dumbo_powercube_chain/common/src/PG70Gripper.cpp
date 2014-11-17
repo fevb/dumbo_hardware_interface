@@ -399,6 +399,7 @@ bool PG70Gripper::movePos(double target_pos)
 	{
 		return false;
 	}
+    m_status[0] = m_status[0] | PC_STATE_MOTION;
     m_executing_pos_command = true;
 	return true;
 }

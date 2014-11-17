@@ -613,6 +613,7 @@ public:
 			  initialized_ = true;
 			  res.success.data = true;
 			  ROS_INFO("...initializing powercubes successful");
+              publishState(true);
 
 		  }
 

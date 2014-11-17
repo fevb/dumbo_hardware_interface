@@ -46,7 +46,7 @@ PG70Node::PG70Node(std::string name) {
 	pg70_ctrl_ = new PG70Gripper(pg70_params_);
 
 	topicPub_JointState_ = n_.advertise<sensor_msgs::JointState> ("/joint_states", 1);
-    topicPub_ControllerState_ = n_.advertise<control_msgs::JointTrajectoryControllerState>("/controller_state", 1);
+    topicPub_ControllerState_ = n_.advertise<control_msgs::JointTrajectoryControllerState>("state", 1);
     topicSub_CommandPos_ = n_.subscribe("command_pos", 1, &PG70Node::topicCallbackCommandPos, this);
     topicSub_CommandVel_ = n_.subscribe("command_vel", 1, &PG70Node::topicCallbackCommandVel, this);
 
