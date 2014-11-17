@@ -44,6 +44,8 @@
 #include <cob_srvs/Trigger.h>
 #include <brics_actuator/JointPositions.h>
 #include <brics_actuator/JointVelocities.h>
+#include <sensor_msgs/JointState.h>
+#include <control_msgs/JointTrajectoryControllerState.h>
 
 // Requires the LWA to be initialized first...
 
@@ -94,6 +96,8 @@ private:
 	ros::ServiceServer srvServer_CloseGripper_;
 	ros::ServiceServer srvServer_Recover_;
 
+    sensor_msgs::JointState joint_state_msg_;
+    control_msgs::JointTrajectoryControllerState controller_state_msg_;
 };
 
 #endif /* PG70_NODE_H_ */

@@ -969,18 +969,9 @@ int main(int argc, char** argv)
 		if ((ros::Time::now() - pc_node.last_publish_time_) >= min_publish_duration)
 		{
             pc_node.publishState(false);
-			// only update the grippers if the arm is not being controlled
-			if(pc_node.gripper_=="PG70")
-			{
-                pg70_node->publishState(false);
-			}
-			else if(pc_node.gripper_=="sdh")
-			{
-                sdh_node->updateSdh(false);
-			}
 		}
 
-		else if(pc_node.gripper_=="PG70")
+        if(pc_node.gripper_=="PG70")
 		{
 			if((ros::Time::now() - pg70_node->last_publish_time_) >= min_publish_duration)
 			{
@@ -988,7 +979,7 @@ int main(int argc, char** argv)
 			}
 		}
 
-		else if(pc_node.gripper_=="sdh")
+        if(pc_node.gripper_=="sdh")
 		{
 			if((ros::Time::now() - sdh_node->last_publish_time_) >= min_publish_duration)
 			{

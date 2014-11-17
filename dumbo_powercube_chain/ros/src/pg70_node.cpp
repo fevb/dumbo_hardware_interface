@@ -37,6 +37,7 @@
 #include <urdf/model.h>
 #include <string>
 #include <sensor_msgs/JointState.h>
+#include <control_msgs/JointTrajectoryControllerState.h>
 #include <diagnostic_msgs/DiagnosticArray.h>
 
 PG70Node::PG70Node(std::string name) {
@@ -181,14 +182,23 @@ void PG70Node::getROSParameters()
     	n_.shutdown();
     }
 
-    // get publish frequency
-    n_.param("frequency", frequency_, 5.0);
-
     pg70_params_->Init(CanBaudrate, ModulIDs);
     pg70_params_->SetArmSelect(ArmSelect);
     pg70_params_->SetJointNames(JointNames);
     pg70_params_->SetMaxAcc(MaxAccelerations);
     pg70_params_->SetSerialNumber((unsigned long int) SerialNumber);
+
+    // initialize messages for publishing state
+    unsigned int n_joints = pg70_params_->GetJointNames().size();
+    joint_state_msg_.name = pg70_params_->GetJointNames();
+    joint_state_msg_.position = std::vector<double>(n_joints, 0.0);
+    joint_state_msg_.velocity = std::vector<double>(n_joints, 0.0);
+
+    unsigned int dof = pg70_params_->GetDOF();
+    controller_state_msg_.joint_names = std::vector<std::string>(dof, "gripper_opening");
+    controller_state_msg_.actual.positions = std::vector<double>(dof, 0.0);
+    controller_state_msg_.actual.velocities = std::vector<double>(dof, 0.0);
+    controller_state_msg_.actual.accelerations = std::vector<double>(dof, 0.0);
 }
 
 
@@ -404,7 +414,7 @@ void PG70Node::topicCallbackCommandPos(const brics_actuator::JointPositions::Con
 
 
 		/// command position to gripper
-		if (!pg70_ctrl_->MovePos(cmd_gripper_pos))
+        if (!pg70_ctrl_->movePos(cmd_gripper_pos))
 		{
 			ROS_ERROR("Error executing gripper position command in %s arm.", (pg70_params_->GetArmSelect()).c_str());
 			//			  error_ = true;
@@ -463,7 +473,7 @@ void PG70Node::topicCallbackCommandVel(const brics_actuator::JointVelocities::Co
 
 
         /// command velocity to gripper
-        if (!pg70_ctrl_->MoveVel(cmd_gripper_vel))
+        if (!pg70_ctrl_->moveVel(cmd_gripper_vel))
         {
             ROS_ERROR("Error executing gripper velocity command in %s arm.", (pg70_params_->GetArmSelect()).c_str());
             return;
@@ -512,7 +522,7 @@ void PG70Node::publishState(bool update)
 		ROS_DEBUG("publish PG70 state -- initialized");
 
 		// only update while in motion or specified by the parameter update
-		if(update || pg70_ctrl_->inMotion())
+        if(update || pg70_ctrl_->executingPosCommand())
 		{
 			pg70_ctrl_->updateStates();
 			ROS_DEBUG("Updated PG70 gripper");
@@ -529,11 +539,16 @@ void PG70Node::publishState(bool update)
 			joint_state_msg.velocity.push_back(0);
 		}
 
-
 		/// publishing joint and controller states on topic
 		topicPub_JointState_.publish(joint_state_msg);
-		last_publish_time_ = joint_state_msg.header.stamp;
 
+        // publish controller state message
+        control_msgs::JointTrajectoryControllerState controller_state_msg;
+        controller_state_msg.header.stamp = joint_state_msg.header.stamp;
+        controller_state_msg.joint_names.push_back(JointNames[0].c_str());
+
+
+        last_publish_time_ = joint_state_msg.header.stamp;
 	}
 
 	// if not initialized publish zero angle + vel messages
