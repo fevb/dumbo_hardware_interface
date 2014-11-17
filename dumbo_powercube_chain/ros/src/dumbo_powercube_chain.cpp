@@ -104,8 +104,6 @@ public:
   /// declaration of topics to publish
   ros::Publisher topicPub_JointState_;
   ros::Publisher topicPub_ControllerState_;
-  ros::Publisher topicPub_OperationMode_;
-  ros::Publisher topicPub_Diagnostic_;
 
   /// declaration of topics to subscribe, callback is called for new messages arriving
   ros::Subscriber topicSub_CommandPos_;
@@ -146,8 +144,6 @@ public:
     /// implementation of topics to publish
     topicPub_JointState_ = n_.advertise<sensor_msgs::JointState> ("/joint_states", 1);
     topicPub_ControllerState_ = n_.advertise<control_msgs::JointTrajectoryControllerState> ("state", 1);
-    topicPub_OperationMode_ = n_.advertise<std_msgs::String> ("current_operationmode", 1);
-    topicPub_Diagnostic_ = n_.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 1);
 
     /// implementation of topics to subscribe
     topicSub_CommandPos_ = n_.subscribe("command_pos", 1, &PowerCubeChainNode::topicCallback_CommandPos, this);
@@ -789,14 +785,9 @@ public:
           controller_state_msg_.actual.velocities = pc_ctrl_->getVelocities();
           controller_state_msg_.actual.accelerations = pc_ctrl_->getAccelerations();
 
-		  std_msgs::String opmode_msg;
-		  // opmode_msg.data = "velocity";
-		  opmode_msg.data = operation_mode_;
-
 		  /// publishing joint and controller states on topic
           topicPub_JointState_.publish(joint_state_msg_);
           topicPub_ControllerState_.publish(controller_state_msg_);
-		  topicPub_OperationMode_.publish(opmode_msg);
 
           last_publish_time_ = joint_state_msg_.header.stamp;
 
@@ -820,49 +811,14 @@ public:
 		  controller_state_msg.actual.accelerations = std::vector<double>(7,0);
 
 
-		  std_msgs::String opmode_msg;
-		  // opmode_msg.data = "velocity";
-		  opmode_msg.data = operation_mode_;
-
 //		  ROS_ERROR("PUBLISHING");
 		  topicPub_JointState_.publish(joint_state_msg);
-		  topicPub_ControllerState_.publish(controller_state_msg);
-		  topicPub_OperationMode_.publish(opmode_msg);
+          topicPub_ControllerState_.publish(controller_state_msg);
 
 		  last_publish_time_ = joint_state_msg.header.stamp;
 
 
 	  }
-	  ROS_DEBUG("Joint states published");
-
-	  // publishing diagnotic messages
-	  diagnostic_msgs::DiagnosticArray diagnostics;
-	  diagnostics.status.resize(1);
-	  // set data to diagnostics
-	  if(error_)
-	  {
-		  diagnostics.status[0].level = 2;
-		  diagnostics.status[0].name = n_.getNamespace();;
-		  diagnostics.status[0].message = error_msg_;
-	  }
-	  else
-	  {
-		  if (initialized_)
-		  {
-			  diagnostics.status[0].level = 0;
-			  diagnostics.status[0].name = n_.getNamespace(); //"dumbo_powercube_chain";
-			  diagnostics.status[0].message = "powercubechain initialized and running";
-		  }
-		  else
-		  {
-			  diagnostics.status[0].level = 1;
-			  diagnostics.status[0].name = n_.getNamespace(); //"dumbo_powercube_chain";
-			  diagnostics.status[0].message = "powercubechain not initialized";
-		  }
-	  }
-	  // publish diagnostic message
-	  topicPub_Diagnostic_.publish(diagnostics);
-	  ROS_DEBUG("Diagnostics published");
 
   }
 
