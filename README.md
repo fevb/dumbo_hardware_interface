@@ -1,4 +1,4 @@
-dumbo_hardware_interface
+dumbo_driver
 ========================
 Overview
 -----------------------------------
