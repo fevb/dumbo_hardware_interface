@@ -104,8 +104,6 @@ public:
   /// declaration of topics to publish
   ros::Publisher topicPub_JointState_;
   ros::Publisher topicPub_ControllerState_;
-  ros::Publisher topicPub_OperationMode_;
-  ros::Publisher topicPub_Diagnostic_;
 
   /// declaration of topics to subscribe, callback is called for new messages arriving
   ros::Subscriber topicSub_CommandPos_;
@@ -146,8 +144,6 @@ public:
     /// implementation of topics to publish
     topicPub_JointState_ = n_.advertise<sensor_msgs::JointState> ("/joint_states", 1);
     topicPub_ControllerState_ = n_.advertise<control_msgs::JointTrajectoryControllerState> ("state", 1);
-    topicPub_OperationMode_ = n_.advertise<std_msgs::String> ("current_operationmode", 1);
-    topicPub_Diagnostic_ = n_.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 1);
 
     /// implementation of topics to subscribe
     topicSub_CommandPos_ = n_.subscribe("command_pos", 1, &PowerCubeChainNode::topicCallback_CommandPos, this);
@@ -343,7 +339,16 @@ public:
     	gripper_ = "none";
     }
 
+    // initialize joint state messages
+    unsigned int dof = pc_params_->GetDOF();
+    joint_state_msg_.name = pc_params_->GetJointNames();
+    joint_state_msg_.position = std::vector<double>(dof, 0.0);
+    joint_state_msg_.velocity = std::vector<double>(dof, 0.0);
 
+    controller_state_msg_.joint_names = pc_params_->GetJointNames();
+    controller_state_msg_.actual.positions = std::vector<double>(dof, 0.0);
+    controller_state_msg_.actual.velocities = std::vector<double>(dof, 0.0);
+    controller_state_msg_.actual.accelerations = std::vector<double>(dof, 0.0);
   }
 
   /*!
@@ -411,7 +416,7 @@ public:
 	  }
 	  ROS_DEBUG("Got upper limits");
 
-	  /// Get offsets out of urdf model
+      /// Get offsets out of urdf model
 	  std::vector<double> Offsets(DOF);
 	  for (unsigned int i = 0; i < DOF; i++)
 	  {
@@ -604,6 +609,7 @@ public:
 			  initialized_ = true;
 			  res.success.data = true;
 			  ROS_INFO("...initializing powercubes successful");
+              publishState(true);
 
 		  }
 
@@ -769,30 +775,21 @@ public:
 			  ROS_DEBUG("Updated arm");
 		  }
 
-		  sensor_msgs::JointState joint_state_msg;
-		  joint_state_msg.header.stamp = ros::Time::now();
-		  joint_state_msg.name = pc_params_->GetJointNames();
-		  joint_state_msg.position = pc_ctrl_->getPositions();
-		  joint_state_msg.velocity = pc_ctrl_->getVelocities();
+          joint_state_msg_.header.stamp = ros::Time::now();
+          joint_state_msg_.position = pc_ctrl_->getPositions();
+          joint_state_msg_.velocity = pc_ctrl_->getVelocities();
 
 
-		  control_msgs::JointTrajectoryControllerState controller_state_msg;
-		  controller_state_msg.header.stamp = joint_state_msg.header.stamp;
-		  controller_state_msg.joint_names = pc_params_->GetJointNames();
-          controller_state_msg.actual.positions = pc_ctrl_->getPositions();
-		  controller_state_msg.actual.velocities = pc_ctrl_->getVelocities();
-		  controller_state_msg.actual.accelerations = pc_ctrl_->getAccelerations();
-
-		  std_msgs::String opmode_msg;
-		  // opmode_msg.data = "velocity";
-		  opmode_msg.data = operation_mode_;
+          controller_state_msg_.header.stamp = joint_state_msg_.header.stamp;
+          controller_state_msg_.actual.positions = pc_ctrl_->getPositions();
+          controller_state_msg_.actual.velocities = pc_ctrl_->getVelocities();
+          controller_state_msg_.actual.accelerations = pc_ctrl_->getAccelerations();
 
 		  /// publishing joint and controller states on topic
-		  topicPub_JointState_.publish(joint_state_msg);
-		  topicPub_ControllerState_.publish(controller_state_msg);
-		  topicPub_OperationMode_.publish(opmode_msg);
+          topicPub_JointState_.publish(joint_state_msg_);
+          topicPub_ControllerState_.publish(controller_state_msg_);
 
-		  last_publish_time_ = joint_state_msg.header.stamp;
+          last_publish_time_ = joint_state_msg_.header.stamp;
 
 	  }
 
@@ -814,51 +811,20 @@ public:
 		  controller_state_msg.actual.accelerations = std::vector<double>(7,0);
 
 
-		  std_msgs::String opmode_msg;
-		  // opmode_msg.data = "velocity";
-		  opmode_msg.data = operation_mode_;
-
 //		  ROS_ERROR("PUBLISHING");
 		  topicPub_JointState_.publish(joint_state_msg);
-		  topicPub_ControllerState_.publish(controller_state_msg);
-		  topicPub_OperationMode_.publish(opmode_msg);
+          topicPub_ControllerState_.publish(controller_state_msg);
 
 		  last_publish_time_ = joint_state_msg.header.stamp;
 
 
 	  }
-	  ROS_DEBUG("Joint states published");
-
-	  // publishing diagnotic messages
-	  diagnostic_msgs::DiagnosticArray diagnostics;
-	  diagnostics.status.resize(1);
-	  // set data to diagnostics
-	  if(error_)
-	  {
-		  diagnostics.status[0].level = 2;
-		  diagnostics.status[0].name = n_.getNamespace();;
-		  diagnostics.status[0].message = error_msg_;
-	  }
-	  else
-	  {
-		  if (initialized_)
-		  {
-			  diagnostics.status[0].level = 0;
-			  diagnostics.status[0].name = n_.getNamespace(); //"dumbo_powercube_chain";
-			  diagnostics.status[0].message = "powercubechain initialized and running";
-		  }
-		  else
-		  {
-			  diagnostics.status[0].level = 1;
-			  diagnostics.status[0].name = n_.getNamespace(); //"dumbo_powercube_chain";
-			  diagnostics.status[0].message = "powercubechain not initialized";
-		  }
-	  }
-	  // publish diagnostic message
-	  topicPub_Diagnostic_.publish(diagnostics);
-	  ROS_DEBUG("Diagnostics published");
 
   }
+
+private:
+  sensor_msgs::JointState joint_state_msg_;
+  control_msgs::JointTrajectoryControllerState controller_state_msg_;
 
 }; //PowerCubeChainNode
 
@@ -940,6 +906,26 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
+
+    // read encoder values and publish the joint states before going
+    // to the main loop
+    for(unsigned int i=0; i<40; i++)
+    {
+        pc_node.publishState(true);
+
+        if(pc_node.gripper_=="PG70")
+        {
+            pg70_node->publishState(true);
+        }
+        else if(pc_node.gripper_=="sdh")
+        {
+            sdh_node->updateSdh(true);
+        }
+        ros::Duration(0.05).sleep();
+    }
+
+
+
 	/// main loop
 	ros::Rate loop_rate(frequency); // Hz
 	while (pc_node.n_.ok())
@@ -948,19 +934,10 @@ int main(int argc, char** argv)
 
 		if ((ros::Time::now() - pc_node.last_publish_time_) >= min_publish_duration)
 		{
-            pc_node.publishState();
-			// only update the grippers if the arm is not being controlled
-			if(pc_node.gripper_=="PG70")
-			{
-				pg70_node->publishState(true);
-			}
-			else if(pc_node.gripper_=="sdh")
-			{
-				sdh_node->updateSdh(true);
-			}
+            pc_node.publishState(false);
 		}
 
-		else if(pc_node.gripper_=="PG70")
+        if(pc_node.gripper_=="PG70")
 		{
 			if((ros::Time::now() - pg70_node->last_publish_time_) >= min_publish_duration)
 			{
@@ -968,7 +945,7 @@ int main(int argc, char** argv)
 			}
 		}
 
-		else if(pc_node.gripper_=="sdh")
+        if(pc_node.gripper_=="sdh")
 		{
 			if((ros::Time::now() - sdh_node->last_publish_time_) >= min_publish_duration)
 			{

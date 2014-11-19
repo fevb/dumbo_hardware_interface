@@ -68,9 +68,9 @@ public:
 
 	bool updateStates();
 
-	bool MovePos(double target_pos);
+    bool movePos(double target_pos);
 
-    bool MoveVel(double target_vel);
+    bool moveVel(double target_vel);
 
 	bool CloseGripper(double target_vel, double current_limit);
 
@@ -86,11 +86,11 @@ public:
 
 	bool DoHoming();
 
-	bool inMotion();
+    bool executingPosCommand();
 
 private:
-	double m_MaxCurrent;
-	bool m_motion;
+    double m_MaxCurrent;
+    bool m_executing_pos_command;
 
 
 };

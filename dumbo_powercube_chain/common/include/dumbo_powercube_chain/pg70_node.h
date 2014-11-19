@@ -44,6 +44,8 @@
 #include <cob_srvs/Trigger.h>
 #include <brics_actuator/JointPositions.h>
 #include <brics_actuator/JointVelocities.h>
+#include <sensor_msgs/JointState.h>
+#include <control_msgs/JointTrajectoryControllerState.h>
 
 // Requires the LWA to be initialized first...
 
@@ -53,8 +55,7 @@ public:
 	bool initialized_;
 	ros::Time last_publish_time_;
 	bool error_;
-	std::string error_msg_;
-	double frequency_;
+    std::string error_msg_;
 
 	// namespace to put the node on (default == /PG70_controller)
 	PG70Node(std::string name = "/PG70_controller");
@@ -77,7 +78,6 @@ public:
 
 	void publishState(bool update=true);
 
-	double getFrequency(){ return frequency_;}
 
 private:
 
@@ -86,6 +86,7 @@ private:
 	PowerCubeCtrlParams* pg70_params_;
 
 	ros::Publisher topicPub_JointState_;
+    ros::Publisher topicPub_ControllerState_;
 	ros::Subscriber topicSub_CommandPos_;
     ros::Subscriber topicSub_CommandVel_;
 
@@ -94,6 +95,8 @@ private:
 	ros::ServiceServer srvServer_CloseGripper_;
 	ros::ServiceServer srvServer_Recover_;
 
+    sensor_msgs::JointState joint_state_msg_;
+    control_msgs::JointTrajectoryControllerState controller_state_msg_;
 };
 
 #endif /* PG70_NODE_H_ */

@@ -47,12 +47,12 @@ if ( isInitialized()==false )											\
 }
 
 PG70Gripper::PG70Gripper(PowerCubeCtrlParams * params) :
-PowerCubeCtrl(params)
+    PowerCubeCtrl(params),
+    m_executing_pos_command(false)
 {
 
 	m_CANDeviceOpened = false;
-	m_Initialized = false;
-	m_motion = false;
+    m_Initialized = false;
 	m_params = params;
 	m_last_time_pub = ros::Time::now();
 
@@ -367,14 +367,13 @@ bool PG70Gripper::updateStates()
 	return true;
 }
 
-bool PG70Gripper::MovePos(double target_pos)
+bool PG70Gripper::movePos(double target_pos)
 {
 	PCTRL_CHECK_INITIALIZED();
 	int ret = 0;
 	float gripper_pos;
     double UpperLimit = m_params->GetUpperLimits().at(0);
     double LowerLimit = m_params->GetLowerLimits().at(0);
-	unsigned long int status;
 
 	if(!DoHoming())
 	{
@@ -385,7 +384,7 @@ bool PG70Gripper::MovePos(double target_pos)
 
 		pthread_mutex_lock(&m_mutex);
         ret = PCube_moveModulePos(m_DeviceHandle, m_params->GetModuleID(0), (float)target_pos,
-				&status, &m_dios[0], &gripper_pos);
+                                  &m_status[0], &m_dios[0], &gripper_pos);
 		pthread_mutex_unlock(&m_mutex);
         m_positions[0] = ((double)gripper_pos);
 	}
@@ -400,27 +399,27 @@ bool PG70Gripper::MovePos(double target_pos)
 	{
 		return false;
 	}
-	m_motion = true;
+    m_status[0] = m_status[0] | PC_STATE_MOTION;
+    m_executing_pos_command = true;
 	return true;
 }
 
-bool PG70Gripper::MoveVel(double target_vel)
+bool PG70Gripper::moveVel(double target_vel)
 {
     PCTRL_CHECK_INITIALIZED();
     int ret = 0;
     float gripper_pos;
     double UpperLimit = m_params->GetUpperLimits().at(0);
     double LowerLimit = m_params->GetLowerLimits().at(0);
-    unsigned long int status;
 
-    double horizon = 0.002;
+    double horizon = 0.003;
     double delta_t, target_time, target_time_horizon;
     unsigned short time4motion;
 
     double target_pos_horizon, delta_pos, delta_pos_horizon;
 
 
-    delta_t = ros::Time::now().toSec() - m_last_time_pub.toSec();
+    delta_t = (ros::Time::now() - m_last_time_pub).toSec();
     m_last_time_pub = ros::Time::now();
 
 
@@ -450,7 +449,7 @@ bool PG70Gripper::MoveVel(double target_vel)
                                      m_params->GetModuleID(0),
                                      (float)target_pos_horizon,
                                      time4motion,
-                                     &status,
+                                     &m_status[0],
                                      &m_dios[0],
                                      &gripper_pos);
 
@@ -469,7 +468,6 @@ bool PG70Gripper::MoveVel(double target_vel)
         return false;
     }
 
-    m_motion = true;
     return true;
 }
 
@@ -514,7 +512,7 @@ bool PG70Gripper::CloseGripper(double target_vel, double current_limit)
 	}
 	if(ret<0) return false;
 
-	return MovePos(0.001);
+    return movePos(0.001);
 }
 
 bool PG70Gripper::DoHoming()
@@ -658,14 +656,14 @@ bool PG70Gripper::DoHoming()
 	return true;
 }
 
-bool PG70Gripper::inMotion()
+bool PG70Gripper::executingPosCommand()
 {
-	if(m_motion)
-	{
-		m_motion = false;
-		return true;
-	}
+    bool in_motion = m_status[0] & PC_STATE_MOTION;
 
-	return (m_status[0] & PC_STATE_MOTION);
+    if(m_executing_pos_command && in_motion)
+        return true;
+
+    m_executing_pos_command = false;
+    return false;
 }
 
