@@ -1,5 +1,5 @@
 <package>
-  <name> dumbo_hardware_interface </name>
+  <name> dumbo_driver </name>
   <version>1.0.0</version>
   <description>
     Interface and wrappers for hardware components of Dumbo.
@@ -7,7 +7,7 @@
   <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
   <license>BSD</license>
 
-  <url>http://ros.org/wiki/dumbo_hardware_interface</url>
+  <url>http://ros.org/wiki/dumbo_driver</url>
 
   <author email="fevb@kth.se">Francisco Vina</author>
   <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
