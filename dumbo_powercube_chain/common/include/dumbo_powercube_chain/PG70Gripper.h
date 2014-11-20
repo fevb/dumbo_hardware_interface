@@ -42,7 +42,9 @@
 class PG70Gripper: public PowerCubeCtrl
 {
 public:
-	PG70Gripper(PowerCubeCtrlParams *params);
+    PG70Gripper(boost::shared_ptr<PowerCubeCtrlParams> params,
+                boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+                boost::shared_ptr<canHandle> CAN_handle);
 
 	virtual ~PG70Gripper();
 

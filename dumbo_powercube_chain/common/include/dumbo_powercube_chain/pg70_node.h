@@ -46,6 +46,7 @@
 #include <brics_actuator/JointVelocities.h>
 #include <sensor_msgs/JointState.h>
 #include <control_msgs/JointTrajectoryControllerState.h>
+#include <boost/scoped_ptr.hpp>
 
 // Requires the LWA to be initialized first...
 
@@ -58,7 +59,9 @@ public:
     std::string error_msg_;
 
 	// namespace to put the node on (default == /PG70_controller)
-	PG70Node(std::string name = "/PG70_controller");
+    PG70Node(ros::NodeHandle nh,
+             boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+             boost::shared_ptr<canHandle> CAN_handle);
 	virtual ~PG70Node();
 
 	void getROSParameters();
@@ -82,8 +85,8 @@ public:
 private:
 
 	// for controlling the parallel gripper PG70
-	PG70Gripper* pg70_ctrl_;
-	PowerCubeCtrlParams* pg70_params_;
+    boost::scoped_ptr<PG70Gripper> pg70_ctrl_;
+    boost::shared_ptr<PowerCubeCtrlParams> pg70_params_;
 
 	ros::Publisher topicPub_JointState_;
     ros::Publisher topicPub_ControllerState_;

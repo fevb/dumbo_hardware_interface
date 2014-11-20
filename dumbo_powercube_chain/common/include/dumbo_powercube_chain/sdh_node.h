@@ -101,6 +101,9 @@
 // dumbo srvs
 #include <dumbo_srvs/GetSDHMotorCurrents.h>
 #include <dumbo_srvs/SetSDHMotorCurrents.h>
+#include <boost/shared_ptr.hpp>
+#include <kvaser_canlib/canlib.h>
+#include <pthread.h>
 
 
 /*!
@@ -186,11 +189,17 @@ private:
 	bool hasNewGoal_;
 	std::string operationMode_;
 
+    boost::shared_ptr<pthread_mutex_t> CAN_mutex_;
+    boost::shared_ptr<canHandle> CAN_handle_;
+
 public:
 	/// create a handle for this node, initialize node
 	ros::Time last_publish_time_;
 
-	SdhNode(std::string name);
+    SdhNode(ros::NodeHandle nh,
+            boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+            boost::shared_ptr<canHandle> CAN_handle
+            );
 	~SdhNode();
 
 	bool init();

@@ -71,6 +71,7 @@
 #include <dumbo_powercube_chain/PowerCubeCtrlParams.h>
 #include <dumbo_powercube_chain/moveCommand.h>
 #include <kvaser_canlib/canlib.h>
+#include <boost/shared_ptr.hpp>
 
 
 class PowerCubeCtrl
@@ -78,11 +79,10 @@ class PowerCubeCtrl
 
 public:
 
-	static pthread_mutex_t m_mutex;
-	static canHandle m_DeviceHandle;
-
 	/// Constructor
-	PowerCubeCtrl(PowerCubeCtrlParams * params);
+    PowerCubeCtrl(boost::shared_ptr<PowerCubeCtrlParams> params,
+                  boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+                  boost::shared_ptr<canHandle> CAN_handle);
 
 	/// Destructor
 	~PowerCubeCtrl();
@@ -99,7 +99,7 @@ public:
 	/*!
 	 * \brief Initializing
 	 */
-	bool Init(PowerCubeCtrlParams * params);
+    virtual bool init();
 
 	/*!
 	 * \brief Checking if is initialized
@@ -149,7 +149,7 @@ public:
 	/*!
 	 * \brief Moves all cubes by the given velocities
 	 */
-    virtual bool MoveVel(const std::vector<double>& velocities);
+    virtual bool moveVel(const std::vector<double>& velocities);
 
 	void updateVelocities(std::vector<double> pos_temp, double delta_t);
 
@@ -262,7 +262,10 @@ protected:
 	bool m_Initialized;
 	bool m_CANDeviceOpened;
 
-	PowerCubeCtrlParams* m_params;
+    boost::shared_ptr<pthread_mutex_t> m_CAN_mutex;
+    boost::shared_ptr<canHandle> m_CAN_handle;
+
+    boost::shared_ptr<PowerCubeCtrlParams> m_params;
 	PC_CTRL_STATUS m_pc_status;
 
 	std::vector<unsigned long> m_status;

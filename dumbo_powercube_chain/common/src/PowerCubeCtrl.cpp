@@ -78,20 +78,25 @@ if ( isInitialized()==false )											\
 /*
  * \brief Constructor
  */
-PowerCubeCtrl::PowerCubeCtrl(PowerCubeCtrlParams * params)
+PowerCubeCtrl::PowerCubeCtrl(boost::shared_ptr<PowerCubeCtrlParams> params,
+                             boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+                             boost::shared_ptr<canHandle> CAN_handle)
 {
-//	m_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 	m_CANDeviceOpened = false;
-	m_Initialized = false;
+    m_Initialized = false;
 
-	m_params = params;
+    m_params = params;
+    m_CAN_mutex = CAN_mutex;
+    m_CAN_handle = CAN_handle;
 
+    // TODO: fix this
 	m_horizon = 0.01; // sec
 
 	m_last_time_pub = ros::Time::now();
 
-	m_pc_status = PC_CTRL_OK;
+    m_pc_status = PC_CTRL_OK;
+
 }
 
 /*
@@ -102,9 +107,9 @@ PowerCubeCtrl::~PowerCubeCtrl()
 	Stop();
 	if (m_CANDeviceOpened)
 	{
-		pthread_mutex_lock(&m_mutex);
-		PCube_closeDevice(m_DeviceHandle);
-		pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        PCube_closeDevice(*m_CAN_handle);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 	}
 }
 
@@ -114,7 +119,7 @@ PowerCubeCtrl::~PowerCubeCtrl()
  *
  * Setting paramters initialized by PowerCubeCtrlParams.h
  */
-bool PowerCubeCtrl::Init(PowerCubeCtrlParams * params)
+bool PowerCubeCtrl::init()
 {
 	int ret = 0;
 	int DOF = m_params->GetDOF();
@@ -184,9 +189,9 @@ bool PowerCubeCtrl::Init(PowerCubeCtrlParams * params)
 	if(!m_CANDeviceOpened)
 	{
 		int CAN_Channel;
-		pthread_mutex_lock(&m_mutex);
-		ret = PCube_openDevice(&m_DeviceHandle, &CAN_Channel, InitStr.str());
-		pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        ret = PCube_openDevice(m_CAN_handle.get(), &CAN_Channel, InitStr.str());
+        pthread_mutex_unlock(m_CAN_mutex.get());
 		if (ret != 0)
 		{
 			std::ostringstream errorMsg;
@@ -202,9 +207,9 @@ bool PowerCubeCtrl::Init(PowerCubeCtrlParams * params)
 
 	// for (int i = 0; i < DOF; i++)
 	//   {
-	//     pthread_mutex_lock(&m_mutex);
-	//     ret = PCube_resetModule(m_DeviceHandle, ModulIDs[i]);
-	//     pthread_mutex_unlock(&m_mutex);
+    //     pthread_mutex_lock(m_CAN_mutex.get());
+    //     ret = PCube_resetModule(*m_CAN_handle, ModulIDs[i]);
+    //     pthread_mutex_unlock(m_CAN_mutex.get());
 	//     if(ret<0)
 	//       {
 	// 	ROS_ERROR("Error resetting module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
@@ -217,18 +222,18 @@ bool PowerCubeCtrl::Init(PowerCubeCtrlParams * params)
 	for(int i = 0; i < DOF; i++)
 	{
 		unsigned long int state;
-		pthread_mutex_lock(&m_mutex);
-		ret = PCube_getModuleState(m_DeviceHandle, ModulIDs[i], &state);
-		pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        ret = PCube_getModuleState(*m_CAN_handle, ModulIDs[i], &state);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 		if( (ret!=0) || (state & PC_STATE_ERROR))
 		{
 			ROS_ERROR("State error in module %d , %s arm  after opening device", ModulIDs[i], m_params->GetArmSelect().c_str());
 			std::ostringstream errorMsg;
 			errorMsg << "Error module state " << i;
 			m_ErrorMessage = errorMsg.str();
-			pthread_mutex_lock(&m_mutex);
-			PCube_closeDevice(m_DeviceHandle);
-			pthread_mutex_unlock(&m_mutex);
+            pthread_mutex_lock(m_CAN_mutex.get());
+            PCube_closeDevice(*m_CAN_handle);
+            pthread_mutex_unlock(m_CAN_mutex.get());
 			m_CANDeviceOpened = false;
 			return false;
 		}
@@ -250,9 +255,9 @@ bool PowerCubeCtrl::Init(PowerCubeCtrlParams * params)
 
 	for (int i = 0; i < DOF; i++)
 	  {
-	    pthread_mutex_lock(&m_mutex);
-	    ret = PCube_resetModule(m_DeviceHandle, ModulIDs[i]);
-	    pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        ret = PCube_resetModule(*m_CAN_handle, ModulIDs[i]);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
 		ROS_ERROR("Error resetting module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
@@ -260,9 +265,9 @@ bool PowerCubeCtrl::Init(PowerCubeCtrlParams * params)
 	      }
 
 	    // max vel
-	    pthread_mutex_lock(&m_mutex);
-	    ret = PCube_setMaxVel(m_DeviceHandle, ModulIDs[i], MaxVel[i]);
-	    pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        ret = PCube_setMaxVel(*m_CAN_handle, ModulIDs[i], MaxVel[i]);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
 		ROS_ERROR("Error setting max vel module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
@@ -270,9 +275,9 @@ bool PowerCubeCtrl::Init(PowerCubeCtrlParams * params)
 	      }
 
 	    // max acceleration
-	    pthread_mutex_lock(&m_mutex);
-	    ret = PCube_setMaxAcc(m_DeviceHandle, ModulIDs[i], MaxAcc[i]);
-	    pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        ret = PCube_setMaxAcc(*m_CAN_handle, ModulIDs[i], MaxAcc[i]);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
 		ROS_ERROR("Error setting max acc module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
@@ -281,9 +286,9 @@ bool PowerCubeCtrl::Init(PowerCubeCtrlParams * params)
 
 
 	    // Min pos
-	    pthread_mutex_lock(&m_mutex);
-	    ret = PCube_setMinPos(m_DeviceHandle, ModulIDs[i], LowerLimits[i]);
-	    pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        ret = PCube_setMinPos(*m_CAN_handle, ModulIDs[i], LowerLimits[i]);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
 		ROS_ERROR("Error setting min pos module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
@@ -291,9 +296,9 @@ bool PowerCubeCtrl::Init(PowerCubeCtrlParams * params)
 	      }
 
 	    // Max pos
-	    pthread_mutex_lock(&m_mutex);
-	    ret = PCube_setMaxPos(m_DeviceHandle, ModulIDs[i], UpperLimits[i]);
-	    pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        ret = PCube_setMaxPos(*m_CAN_handle, ModulIDs[i], UpperLimits[i]);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
 		ROS_ERROR("Error setting max pos module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
@@ -309,9 +314,9 @@ bool PowerCubeCtrl::Init(PowerCubeCtrlParams * params)
 	for(int i=0; i<DOF; i++)
 	{
 		float pos;
-		pthread_mutex_lock(&m_mutex);
-		ret = PCube_getModulePos(m_DeviceHandle, (int)m_params->GetModuleID(i), &pos);
-		pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        ret = PCube_getModulePos(*m_CAN_handle, (int)m_params->GetModuleID(i), &pos);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 		if(ret<0)
 		{
 			Stop();
@@ -352,9 +357,9 @@ bool PowerCubeCtrl::Close()
 		m_Initialized = false;
 		m_CANDeviceOpened = false;
 
-		pthread_mutex_lock(&m_mutex);
-		PCube_closeDevice(m_DeviceHandle);
-		pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        PCube_closeDevice(*m_CAN_handle);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 
 		return true;
 	}
@@ -384,17 +389,17 @@ bool PowerCubeCtrl::MoveJointSpace(const std::vector<double>& target_angles)
   for(int i=0; i<DOF; i++)
   {
 
-	  pthread_mutex_lock(&m_mutex);
-	  ret += PCube_moveModulePos(m_DeviceHandle, ModuleIDs[i], target_angles[i],
+      pthread_mutex_lock(m_CAN_mutex.get());
+      ret += PCube_moveModulePos(*m_CAN_handle, ModuleIDs[i], target_angles[i],
 			  &m_status[i], &m_dios[i], &pos);
-	  pthread_mutex_unlock(&m_mutex);
+      pthread_mutex_unlock(m_CAN_mutex.get());
 	  m_positions[i] = (double)pos;
 
   }
 
-  pthread_mutex_lock(&m_mutex);
-  ret+=PCube_startMotionAll(m_DeviceHandle);
-  pthread_mutex_unlock(&m_mutex);
+  pthread_mutex_lock(m_CAN_mutex.get());
+  ret+=PCube_startMotionAll(*m_CAN_handle);
+  pthread_mutex_unlock(m_CAN_mutex.get());
 
   if(ret<0) return false;
 
@@ -488,14 +493,14 @@ bool PowerCubeCtrl::MoveJointSpaceSync(const std::vector<double>& target)
 	// /// Send motion commands to hardware
 	// for (unsigned int i = 0; i < DOF; i++)
 	// {
-	// 	pthread_mutex_lock(&m_mutex);
-	// 	PCube_moveRamp(m_DeviceHandle, m_params->GetModuleIDs()[i], target[i], fabs(vel[i]), fabs(acc[i]));
-	// 	pthread_mutex_unlock(&m_mutex);
+    // 	pthread_mutex_lock(m_CAN_mutex.get());
+    // 	PCube_moveRamp(*m_CAN_handle, m_params->GetModuleIDs()[i], target[i], fabs(vel[i]), fabs(acc[i]));
+    // 	pthread_mutex_unlock(m_CAN_mutex.get());
 	// }
 
-	// pthread_mutex_lock(&m_mutex);
-	// PCube_startMotionAll(m_DeviceHandle);
-	// pthread_mutex_unlock(&m_mutex);
+    // pthread_mutex_lock(m_CAN_mutex.get());
+    // PCube_startMotionAll(*m_CAN_handle);
+    // pthread_mutex_unlock(m_CAN_mutex.get());
 
 	return true;
 }
@@ -506,7 +511,7 @@ bool PowerCubeCtrl::MoveJointSpaceSync(const std::vector<double>& target)
  * Calculating positions and times by desired value of the cob_trajectory_controller
  * \param velocities Vector
  */
-bool PowerCubeCtrl::MoveVel(const std::vector<double>& vel)
+bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 {
 	PCTRL_CHECK_INITIALIZED();
 
@@ -674,16 +679,16 @@ bool PowerCubeCtrl::MoveVel(const std::vector<double>& vel)
 
 	//convert the time to int in [ms]
 	unsigned short time4motion = (unsigned short)((target_time_horizon)*1000.0);
-	pthread_mutex_lock(&m_mutex);
+    pthread_mutex_lock(m_CAN_mutex.get());
 	for (unsigned int i = 0; i < DOF; i++)
 	{
 		// in order to not overload the CAN bus, we sleep between sends:
 //		nanosleep(&sleep_time,NULL);
 
 
-//		pthread_mutex_lock(&m_mutex);
-		ret = PCube_moveStepExtended(m_DeviceHandle, m_params->GetModuleID(i), target_pos_horizon[i], time4motion, &m_status[i], &m_dios[i], &pos);
-//		pthread_mutex_unlock(&m_mutex);
+//		pthread_mutex_lock(m_CAN_mutex.get());
+        ret = PCube_moveStepExtended(*m_CAN_handle, m_params->GetModuleID(i), target_pos_horizon[i], time4motion, &m_status[i], &m_dios[i], &pos);
+//		pthread_mutex_unlock(m_CAN_mutex.get());
 
 		/// error handling
 		if (ret != 0)
@@ -701,7 +706,7 @@ bool PowerCubeCtrl::MoveVel(const std::vector<double>& vel)
 
 	updateVelocities(pos_temp, delta_t);
 
-	pthread_mutex_unlock(&m_mutex);
+    pthread_mutex_unlock(m_CAN_mutex.get());
 	return true;
 }
 
@@ -735,9 +740,9 @@ void PowerCubeCtrl::updateVelocities(std::vector<double> pos_temp, double delta_
 bool PowerCubeCtrl::Stop()
 {
 	/// stop should be executed without checking any conditions
-	pthread_mutex_lock(&m_mutex);
-	PCube_haltAll(m_DeviceHandle);
-	pthread_mutex_unlock(&m_mutex);
+    pthread_mutex_lock(m_CAN_mutex.get());
+    PCube_haltAll(*m_CAN_handle);
+    pthread_mutex_unlock(m_CAN_mutex.get());
 
 	/// after halt the modules don't accept move commands any more, they first have to be reset
     ros::Duration(0.5).sleep();
@@ -764,9 +769,9 @@ bool PowerCubeCtrl::Recover()
 	  for (unsigned int i = 0; i < DOF; i++)
 	  {
 
-		  pthread_mutex_lock(&m_mutex);
-		  ret = PCube_resetModule(m_DeviceHandle, m_params->GetModuleID(i));
-          pthread_mutex_unlock(&m_mutex);
+          pthread_mutex_lock(m_CAN_mutex.get());
+          ret = PCube_resetModule(*m_CAN_handle, m_params->GetModuleID(i));
+          pthread_mutex_unlock(m_CAN_mutex.get());
 	  }
 
 	  // time for reboot
@@ -819,9 +824,9 @@ bool PowerCubeCtrl::setMaxVelocity(double maxVelocity)
 	PCTRL_CHECK_INITIALIZED();
 	for (int i = 0; i < m_params->GetDOF(); i++)
 	{
-		pthread_mutex_lock(&m_mutex);
-		PCube_setMaxVel(m_DeviceHandle, m_params->GetModuleID(i), maxVelocity);
-		pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        PCube_setMaxVel(*m_CAN_handle, m_params->GetModuleID(i), maxVelocity);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 
 		std::vector<double> maxVelocities(maxVelocity);
 		m_params->SetMaxVel(maxVelocities);
@@ -840,9 +845,9 @@ bool PowerCubeCtrl::setMaxVelocity(const std::vector<double>& maxVelocities)
 
   for (int i = 0; i < m_params->GetDOF(); i++)
     {
-      pthread_mutex_lock(&m_mutex);
-      PCube_setMaxVel(m_DeviceHandle, m_params->GetModuleID(i), maxVelocities[i]);
-      pthread_mutex_unlock(&m_mutex);
+      pthread_mutex_lock(m_CAN_mutex.get());
+      PCube_setMaxVel(*m_CAN_handle, m_params->GetModuleID(i), maxVelocities[i]);
+      pthread_mutex_unlock(m_CAN_mutex.get());
     }
 	
   m_params->SetMaxVel(maxVelocities);
@@ -861,9 +866,9 @@ bool PowerCubeCtrl::setMaxAcceleration(double maxAcceleration)
 
 	for (int i = 0; i < m_params->GetDOF(); i++)
 	{
-        pthread_mutex_lock(&m_mutex);
-		PCube_setMaxAcc(m_DeviceHandle, m_params->GetModuleID(i), maxAcceleration);
-		pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        PCube_setMaxAcc(*m_CAN_handle, m_params->GetModuleID(i), maxAcceleration);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 		std::vector<double> maxAccelerations(maxAcceleration);
 		m_params->SetMaxAcc(maxAccelerations);
 	}
@@ -880,9 +885,9 @@ bool PowerCubeCtrl::setMaxAcceleration(const std::vector<double>& maxAcceleratio
 
 	for (int i = 0; i < m_params->GetDOF(); i++)
 	{
-		pthread_mutex_lock(&m_mutex);
-		PCube_setMaxAcc(m_DeviceHandle, m_params->GetModuleID(i), maxAccelerations[i]);
-		pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        PCube_setMaxAcc(*m_CAN_handle, m_params->GetModuleID(i), maxAccelerations[i]);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 	}
 	m_params->SetMaxAcc(maxAccelerations);
 	return true;
@@ -926,14 +931,14 @@ bool PowerCubeCtrl::setSyncMotion()
 			unsigned long int confword;
 
 			/// get config
-			pthread_mutex_lock(&m_mutex);
-			PCube_getConfig(m_DeviceHandle, m_params->GetModuleID(i), &confword);
-			pthread_mutex_unlock(&m_mutex);
+            pthread_mutex_lock(m_CAN_mutex.get());
+            PCube_getConfig(*m_CAN_handle, m_params->GetModuleID(i), &confword);
+            pthread_mutex_unlock(m_CAN_mutex.get());
 
 			/// set config to synchronous
-			pthread_mutex_lock(&m_mutex);
-			PCube_setConfig(m_DeviceHandle, m_params->GetModuleID(i), confword | PC_CONFIGID_MOD_SYNC_MOTION);
-			pthread_mutex_unlock(&m_mutex);
+            pthread_mutex_lock(m_CAN_mutex.get());
+            PCube_setConfig(*m_CAN_handle, m_params->GetModuleID(i), confword | PC_CONFIGID_MOD_SYNC_MOTION);
+            pthread_mutex_unlock(m_CAN_mutex.get());
 		}
 		return true;
 	}
@@ -958,14 +963,14 @@ bool PowerCubeCtrl::setASyncMotion()
 			unsigned long int confword;
 
 			/// get config
-			pthread_mutex_lock(&m_mutex);
-			PCube_getConfig(m_DeviceHandle, m_params->GetModuleID(i), &confword);
-			pthread_mutex_unlock(&m_mutex);
+            pthread_mutex_lock(m_CAN_mutex.get());
+            PCube_getConfig(*m_CAN_handle, m_params->GetModuleID(i), &confword);
+            pthread_mutex_unlock(m_CAN_mutex.get());
 
 			/// set config to asynchronous
-			pthread_mutex_lock(&m_mutex);
-			PCube_setConfig(m_DeviceHandle, m_params->GetModuleID(i), confword & (~PC_CONFIGID_MOD_SYNC_MOTION));
-			pthread_mutex_unlock(&m_mutex);
+            pthread_mutex_lock(m_CAN_mutex.get());
+            PCube_setConfig(*m_CAN_handle, m_params->GetModuleID(i), confword & (~PC_CONFIGID_MOD_SYNC_MOTION));
+            pthread_mutex_unlock(m_CAN_mutex.get());
 		}
 		return true;
 	}
@@ -996,9 +1001,9 @@ bool PowerCubeCtrl::updateStates()
 	{
 		ros::Duration(0.001).sleep();
 		state = m_status[i];
-		pthread_mutex_lock(&m_mutex);
-		ret = PCube_getStateDioPos(m_DeviceHandle, m_params->GetModuleID(i), &state, &dio, &position);
-		pthread_mutex_unlock(&m_mutex);
+        pthread_mutex_lock(m_CAN_mutex.get());
+        ret = PCube_getStateDioPos(*m_CAN_handle, m_params->GetModuleID(i), &state, &dio, &position);
+        pthread_mutex_unlock(m_CAN_mutex.get());
 
 		if (ret != 0)
 		{
@@ -1154,9 +1159,9 @@ bool PowerCubeCtrl::doHoming()
   int ret = 0;
   for (unsigned int i = 0; i < DOF; i++)
   {
-	  pthread_mutex_lock(&m_mutex);
-	  ret = PCube_homeModule(m_DeviceHandle, ModuleIDs[i]);
-	  pthread_mutex_unlock(&m_mutex);
+      pthread_mutex_lock(m_CAN_mutex.get());
+      ret = PCube_homeModule(*m_CAN_handle, ModuleIDs[i]);
+      pthread_mutex_unlock(m_CAN_mutex.get());
 	  if (ret != 0)
 	  {
 		  ROS_ERROR("Can't home module %d", ModuleIDs[i]);
@@ -1176,9 +1181,9 @@ bool PowerCubeCtrl::doHoming()
 	  homed = true;
 	  for(unsigned int i=0; i<1; i++)
 	  {
-		  pthread_mutex_lock(&m_mutex);
-		  (void)PCube_getModuleState(m_DeviceHandle, ModuleIDs[i], &state);
-		  pthread_mutex_unlock(&m_mutex);
+          pthread_mutex_lock(m_CAN_mutex.get());
+          (void)PCube_getModuleState(*m_CAN_handle, ModuleIDs[i], &state);
+          pthread_mutex_unlock(m_CAN_mutex.get());
 		  if(state & PC_STATE_ERROR)
 		  {
 		    ROS_ERROR("State error module %d, %s arm after homing", ModuleIDs[i], m_params->GetArmSelect().c_str());
