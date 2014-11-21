@@ -69,7 +69,6 @@
 
 // own includes
 #include <dumbo_powercube_chain/PowerCubeCtrlParams.h>
-#include <dumbo_powercube_chain/moveCommand.h>
 #include <kvaser_canlib/canlib.h>
 #include <boost/shared_ptr.hpp>
 
@@ -237,17 +236,17 @@ public:
 	/*!
 	 * \brief Gets the current positions
 	 */
-	std::vector<double> getPositions();
+    const std::vector<double> &getPositions();
 
 	/*!
 	 * \brief Gets the current velcities
 	 */
-	std::vector<double> getVelocities();
+    const std::vector<double> &getVelocities();
 
 	/*!
 	 * \brief Gets the current accelerations
 	 */
-	std::vector<double> getAccelerations();
+    const std::vector<double> &getAccelerations();
 
 	/*!
 	 * \brief Waits until all Modules are homed.
@@ -280,6 +279,14 @@ protected:
 	ros::Time m_last_time_pub;
 
 	std::string m_ErrorMessage;
+
+    // preallocated variables for moveVel command
+    std::vector<double> scaled_velocities_;
+    std::vector<float> delta_pos_;
+    std::vector<float> delta_pos_horizon_;
+    std::vector<float> target_pos_;
+    std::vector<float> target_pos_horizon_;
+    std::vector<double> pos_temp_;
 
 };
 

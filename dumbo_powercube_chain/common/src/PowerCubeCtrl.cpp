@@ -132,6 +132,15 @@ bool PowerCubeCtrl::init()
 	std::vector<double> UpperLimits = m_params->GetUpperLimits();
 	std::vector<std::string> JointNames = m_params->GetJointNames();
 
+    //resize moveVel command variables
+    scaled_velocities_.resize(DOF);
+    delta_pos_.resize(DOF);
+    delta_pos_horizon_.resize(DOF);
+    target_pos_.resize(DOF);
+    target_pos_horizon_.resize(DOF);
+    pos_temp_.resize(DOF);
+
+
 
 	/// Output of current settings in the terminal
 	std::cout << " D  O  F  :" << DOF << std::endl;
@@ -139,6 +148,7 @@ bool PowerCubeCtrl::init()
 	m_dios.resize(DOF);
 	m_positions.resize(DOF);
 	m_velocities.resize(DOF);
+    m_accelerations.resize(DOF);
 
 	std::cout << "=========================================================================== " << std::endl;
 	std::cout << "PowerCubeCtrl:Init: Trying to initialize with the following parameters: " << std::endl;
@@ -520,32 +530,17 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	/// getting paramerters
     unsigned int DOF = m_params->GetDOF();
 
-	std::vector<double> velocities;
-	velocities.resize(DOF);
-	velocities = vel; 				// temp var for velocity because of const reference of the function
-
-	std::vector<float> delta_pos;			// traviling distance for next command
-	std::vector<float> delta_pos_horizon;
-	delta_pos.resize(DOF);
-	delta_pos_horizon.resize(DOF);
-
-	std::vector<float> target_pos;		// absolute target postion that is desired with this command
-	std::vector<float> target_pos_horizon;
-
-	target_pos.resize(DOF);
-	target_pos_horizon.resize(DOF);
-
 	float target_time; 	// time in milliseconds
 	float target_time_horizon;
 
 	float delta_t;			// time from the last moveVel cmd to now
 
 	/// getting limits
-	std::vector<double> LowerLimits = m_params->GetLowerLimits();
-	std::vector<double> UpperLimits = m_params->GetUpperLimits();
-	std::vector<double> maxVels = m_params->GetMaxVel();
+    const std::vector<double> &LowerLimits = m_params->GetLowerLimits();
+    const std::vector<double> &UpperLimits = m_params->GetUpperLimits();
+    const std::vector<double> &maxVels = m_params->GetMaxVel();
 
-	std::vector<double> maxAcc = m_params->GetMaxAcc();
+    const std::vector<double> &maxAcc = m_params->GetMaxAcc();
 
 	int ret; 		// temp return value holder
 	float pos; 	// temp position variable for PCube_move.. cmds
@@ -557,7 +552,7 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	sleep_time.tv_nsec = 1000000; // 1 ms
 
 	/// check dimensions
-	if (velocities.size() != DOF)
+    if (vel.size() != DOF)
 	{
 		m_ErrorMessage = "Skipping command: Commanded velocities and DOF are not same dimension.";
 		return false;
@@ -569,26 +564,23 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	double scale_temp;
 	for(unsigned int i=0; i<DOF; i++)
 	{
-		if(velocities[i] > maxVels[i])
+        if(vel[i] > maxVels[i])
 		{
-			scale_temp  = (double)velocities[i]/(double)maxVels[i];
+            scale_temp  = (double)vel[i]/(double)maxVels[i];
 			if((scale_temp > 0.0) && (scale_temp > scale)) scale = scale_temp;
 		}
 
-		else if(velocities[i]*-1.0 > maxVels[i])
+        else if(vel[i]*-1.0 > maxVels[i])
 		{
-			scale_temp = -1.0*((double)velocities[i]/(double)maxVels[i]);
+            scale_temp = -1.0*((double)vel[i]/(double)maxVels[i]);
 			if((scale_temp > 0.0) && (scale_temp > scale)) scale = scale_temp;
 		}
 	}
 
 
-	if(scale>1) ROS_WARN("Scaling down velocities by factor of %f", scale);
-
-	std::vector<double> scaled_velocities = velocities;
 	for(unsigned int i=0; (i<DOF) && (scale>1); i++)
 	{
-		scaled_velocities[i] = (double)scaled_velocities[i]/(double)scale;
+        scaled_velocities_[i] = (double)vel[i]/(double)scale;
 	}
 
 	//== calculate destination position ============================
@@ -597,17 +589,13 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	delta_t = ros::Time::now().toSec() - m_last_time_pub.toSec();
 	m_last_time_pub = ros::Time::now();
 
-	std::vector<double> pos_temp;
-	pos_temp.resize(DOF);
-
-
 	//check for acceleration limits and scale
 	//todo
 
 	bool acc_limit_passed = false;
 	for(unsigned int i=0; i < DOF; i++)
 	{
-		if(fabs(scaled_velocities[i] - m_velocities[i]) > fabs(maxAcc[i]))
+        if(fabs(scaled_velocities_[i] - m_velocities[i]) > fabs(maxAcc[i]))
 			acc_limit_passed = true;
 	}
 
@@ -616,7 +604,7 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 		for(unsigned int i=0; i < DOF; i++)
 		{
 		  ROS_ERROR("Acceleration limit surpassed, sending zero velocity to the %s arm!", m_params->GetArmSelect().c_str());
-		  scaled_velocities[i] = 0.0;
+          scaled_velocities_[i] = 0.0;
 		}
 	}
 
@@ -638,14 +626,15 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 		target_time_horizon = target_time + (float)m_horizon; //sec
 
 
-		delta_pos_horizon[i] = target_time_horizon * scaled_velocities[i];
-		delta_pos[i] = target_time * scaled_velocities[i];
+        delta_pos_horizon_[i] = target_time_horizon * scaled_velocities_[i];
+        delta_pos_[i] = target_time * scaled_velocities_[i];
 
-		ROS_DEBUG("delta_pos[%i]: %f target_time: %f velocity[%i]: %f",i ,delta_pos[i], target_time, i, scaled_velocities[i]);
+        ROS_DEBUG("delta_pos[%i]: %f target_time: %f velocity[%i]: %f",i ,delta_pos_[i], target_time, i, scaled_velocities_[i]);
 
 		// calculate target position
-		target_pos_horizon[i] = m_positions[i] + delta_pos_horizon[i];
-		ROS_DEBUG("target_pos[%i]: %f m_position[%i]: %f",i ,target_pos[i], i, m_positions[i]);
+        target_pos_horizon_[i] = m_positions[i] + delta_pos_horizon_[i];
+        target_pos_[i] = m_positions[i] + delta_pos_[i];
+        ROS_DEBUG("target_pos[%i]: %f m_position[%i]: %f",i ,target_pos_[i], i, m_positions[i]);
 	}
 
 
@@ -658,16 +647,16 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 		/// check position limits
 		// TODO: add second limit "safty limit"
 		// if target position is outer limits and the command velocity is in in direction away from working range, skip command
-		if ((target_pos_horizon[i] < LowerLimits[i]) && (scaled_velocities[i] < 0))
+        if ((target_pos_horizon_[i] < LowerLimits[i]) && (scaled_velocities_[i] < 0))
 		{
-			ROS_INFO("Skipping command: %f Target position exceeds lower limit (%f) for joint %d.", target_pos_horizon[i], LowerLimits[i], i+1);
+            //ROS_INFO("Skipping command: %f Target position exceeds lower limit (%f) for joint %d.", target_pos_horizon[i], LowerLimits[i], i+1);
 			return true;
 		}
 
 		// if target position is outer limits and the command velocity is in in direction away from working range, skip command
-		if ((target_pos_horizon[i] > UpperLimits[i]) && (scaled_velocities[i] > 0))
+        if ((target_pos_horizon_[i] > UpperLimits[i]) && (scaled_velocities_[i] > 0))
 		{
-			ROS_INFO("Skipping command: %f Target position exceeds upper limit (%f) for joint %d.", target_pos_horizon[i], UpperLimits[i], i+1);
+            //ROS_INFO("Skipping command: %f Target position exceeds upper limit (%f) for joint %d.", target_pos_horizon[i], UpperLimits[i], i+1);
 
 			return true;
 		}
@@ -687,13 +676,13 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 
 
 //		pthread_mutex_lock(m_CAN_mutex.get());
-        ret = PCube_moveStepExtended(*m_CAN_handle, m_params->GetModuleID(i), target_pos_horizon[i], time4motion, &m_status[i], &m_dios[i], &pos);
+        ret = PCube_moveStepExtended(*m_CAN_handle, m_params->GetModuleID(i), target_pos_horizon_[i], time4motion, &m_status[i], &m_dios[i], &pos);
 //		pthread_mutex_unlock(m_CAN_mutex.get());
 
 		/// error handling
 		if (ret != 0)
 		{
-			ROS_INFO("Com Error");
+            ROS_ERROR("Com Error");
 			pos = m_positions[i];
 			//m_pc_status = PC_CTRL_ERR;
 			//TODO: add error msg for diagnostics
@@ -701,10 +690,10 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 
 		// !!! Position in pos is position before moveStep movement, to get the expected position after the movement (required as input to the next moveStep command) we add the delta position (cmd_pos) !!!
         m_positions[i] = (double)pos;
-		pos_temp[i] = (double)pos;
+        pos_temp_[i] = (double)pos;
 	}
 
-	updateVelocities(pos_temp, delta_t);
+    updateVelocities(pos_temp_, delta_t);
 
     pthread_mutex_unlock(m_CAN_mutex.get());
 	return true;
@@ -1121,7 +1110,7 @@ bool PowerCubeCtrl::statusMoving()
 /*!
  * \brief Gets the current positions
  */
-std::vector<double> PowerCubeCtrl::getPositions()
+const std::vector<double> &PowerCubeCtrl::getPositions()
 {
 	return m_positions;
 }
@@ -1129,7 +1118,7 @@ std::vector<double> PowerCubeCtrl::getPositions()
 /*!
  * \brief Gets the current velocities
  */
-std::vector<double> PowerCubeCtrl::getVelocities()
+const std::vector<double> &PowerCubeCtrl::getVelocities()
 {
 	/// ToDo: calculate new velocities before returning
 	return m_velocities;
@@ -1138,7 +1127,7 @@ std::vector<double> PowerCubeCtrl::getVelocities()
 /*!
  * \brief Gets the current positions
  */
-std::vector<double> PowerCubeCtrl::getAccelerations()
+const std::vector<double> &PowerCubeCtrl::getAccelerations()
 {
 	/// ToDo: calculate new accelerations before returning
 	return m_accelerations;

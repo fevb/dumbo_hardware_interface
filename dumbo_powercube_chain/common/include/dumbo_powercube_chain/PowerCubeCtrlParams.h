@@ -229,33 +229,33 @@ public:
 	}
 
 	/// Gets the upper angular limits (rad) for the joints
-	std::vector<double> GetUpperLimits()
+    const std::vector<double>& GetUpperLimits()
 	{
-		return m_UpperLimits;
+        return m_UpperLimits;
 	}
 
 	/// Gets the lower angular limits (rad) for the joints
-	std::vector<double> GetLowerLimits()
+    const std::vector<double>& GetLowerLimits()
 	{
-		return m_LowerLimits;
+        return m_LowerLimits;
 	}
 
 	/// Gets the offset angulars (rad) for the joints
-	std::vector<double> GetOffsets()
+    const std::vector<double>& GetOffsets()
 	{
-		return m_Offsets;
+        return m_Offsets;
 	}
 
 	/// Gets the max. angular accelerations (rad/s^2) for the joints
-	std::vector<double> GetMaxAcc()
+    const std::vector<double>& GetMaxAcc()
 	{
-		return m_MaxAcc;
+        return m_MaxAcc;
 	}
 
 	/// Gets the max. angular velocities (rad/s) for the joints
-	std::vector<double> GetMaxVel()
+    const std::vector<double>& GetMaxVel()
 	{
-		return m_MaxVel;
+        return m_MaxVel;
 	}
 
 	// serial number of first module
