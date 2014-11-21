@@ -70,12 +70,14 @@ using namespace SDH;
  *
  * \param name Name for the actionlib server
  */
-SdhNode::SdhNode(std::string name):
-as_(nh_, name + "/follow_joint_trajectory", boost::bind(&SdhNode::executeCB, this, _1),true),
-action_name_(name+ "/follow_joint_trajectory")
+SdhNode::SdhNode(ros::NodeHandle nh,
+                 boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+                 boost::shared_ptr<canHandle> CAN_handle):
+    nh_(nh),
+    as_(nh, "follow_joint_trajectory", boost::bind(&SdhNode::executeCB, this, _1),true),
+action_name_(nh.getNamespace()+ "/follow_joint_trajectory")
 {
-	pi_ = 3.1415926;
-	nh_ = ros::NodeHandle(name);
+    pi_ = 3.1415926;
 	isError_ = false;
 	// diagnostics
 	topicPub_Diagnostics_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 1);
@@ -87,6 +89,8 @@ action_name_(name+ "/follow_joint_trajectory")
 
 	temp_ = std::vector<double>(sensors_temp_index_.size(), 0.0);
 
+    CAN_mutex_ = CAN_mutex;
+    CAN_handle_ = CAN_handle;
 }
 
 /*!
@@ -98,10 +102,10 @@ SdhNode::~SdhNode()
 		dsa_->Close();
 	if(isInitialized_)
 	{
-		pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+        pthread_mutex_lock(CAN_mutex_.get());
 		sdh_->Close();
 		isInitialized_ = false;
-		pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+        pthread_mutex_unlock(CAN_mutex_.get());
 	}
 	delete sdh_;
 }
@@ -410,9 +414,9 @@ bool SdhNode::srvCallback_Init(cob_srvs::Trigger::Request &req,
 				//							return true;
 				//						}
 
-				pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
-				sdh_->OpenCAN_ESD((tDeviceHandle)(&(PowerCubeCtrl::m_DeviceHandle)), timeout_, id_read_, id_write_ );
-				pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_lock(CAN_mutex_.get());
+                sdh_->OpenCAN_ESD((tDeviceHandle)(CAN_handle_.get()), timeout_, id_read_, id_write_ );
+                pthread_mutex_unlock(CAN_mutex_.get());
 
 				ROS_INFO("Initialized ESDCAN for SDH");
 				isInitialized_ = true;
@@ -477,9 +481,9 @@ bool SdhNode::srvCallback_Stop(cob_srvs::Trigger::Request &req,
 	// stopping all arm movements
 	try
 	{
-		pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+        pthread_mutex_lock(CAN_mutex_.get());
 		sdh_->Stop();
-		pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+        pthread_mutex_unlock(CAN_mutex_.get());
 	}
 	catch (SDH::cSDHLibraryException* e)
 	{
@@ -521,23 +525,23 @@ bool SdhNode::srvCallback_SetOperationMode(cob_srvs::SetOperationMode::Request &
 	if(isInitialized_)
 	{
 		hasNewGoal_ = false;
-		pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+        pthread_mutex_lock(CAN_mutex_.get());
 		sdh_->Stop();
-		pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+        pthread_mutex_unlock(CAN_mutex_.get());
 
 		ROS_INFO("Set operation mode to [%s]", req.operation_mode.data.c_str());
 		operationMode_ = req.operation_mode.data;
 		res.success.data = true;
 		if( operationMode_ == "position"){
-			pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+            pthread_mutex_lock(CAN_mutex_.get());
 			sdh_->SetController(SDH::cSDH::eCT_POSE);
-			pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+            pthread_mutex_unlock(CAN_mutex_.get());
 		}else if( operationMode_ == "velocity"){
 			try{
-				pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_lock(CAN_mutex_.get());
 				sdh_->SetController(SDH::cSDH::eCT_VELOCITY);
 				sdh_->SetAxisEnable(sdh_->All, 1.0);
-				pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_unlock(CAN_mutex_.get());
 			}
 			catch (SDH::cSDHLibraryException* e)
 			{
@@ -564,10 +568,10 @@ bool SdhNode::srvCallback_Shutdown(cob_srvs::Trigger::Request &req,
 	if(isInitialized_)
 	{
 		ROS_INFO("Shutting down the SDH");
-		pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+        pthread_mutex_lock(CAN_mutex_.get());
 		sdh_->Close();
 		isInitialized_ = false;
-		pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+        pthread_mutex_unlock(CAN_mutex_.get());
 		res.success.data = true;
 	}
 
@@ -589,9 +593,9 @@ bool SdhNode::srvCallback_GetMotorCurrents(
 	{
 		try
 		{
-			pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+            pthread_mutex_lock(CAN_mutex_.get());
 			motor_currents_ = sdh_->GetAxisMotorCurrent( axes_, sdh_->eMCM_MOVE );
-			pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+            pthread_mutex_unlock(CAN_mutex_.get());
 		}
 		catch (SDH::cSDHLibraryException* e)
 		{
@@ -647,9 +651,9 @@ bool SdhNode::srvCallback_SetMotorCurrents(
 		{
 			try
 			{
-				pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_lock(CAN_mutex_.get());
 				sdh_->SetAxisMotorCurrent(axes_, motor_currents, sdh_->eMCM_MOVE);
-				pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_unlock(CAN_mutex_.get());
 			}
 			catch (SDH::cSDHLibraryException* e)
 			{
@@ -683,9 +687,9 @@ bool SdhNode::srvCallback_OpenHand(cob_srvs::Trigger::Request &req,
 	{
 		ROS_INFO("Opening the SDH");
 		// first set high currents on all fingers
-		pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+        pthread_mutex_lock(CAN_mutex_.get());
 		sdh_->SetAxisMotorCurrent(axes_, std::vector<double>(7, 0.75), sdh_->eMCM_MOVE);
-		pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+        pthread_mutex_unlock(CAN_mutex_.get());
 
 
 		updateSdh(true);
@@ -732,9 +736,9 @@ void SdhNode::updateSdh(bool update)
 			// stop sdh first when new goal arrived
 			try
 			{
-				pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_lock(CAN_mutex_.get());
 				sdh_->Stop();
-				pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_unlock(CAN_mutex_.get());
 			}
 			catch (SDH::cSDHLibraryException* e)
 			{
@@ -775,10 +779,10 @@ void SdhNode::updateSdh(bool update)
 						}
 					}
 
-					pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+                    pthread_mutex_lock(CAN_mutex_.get());
 					sdh_->SetAxisTargetAngle( axes_, targetAngles_ );
 					sdh_->MoveHand(false);
-					pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+                    pthread_mutex_unlock(CAN_mutex_.get());
 				}
 				catch (SDH::cSDHLibraryException* e)
 				{
@@ -791,9 +795,9 @@ void SdhNode::updateSdh(bool update)
 				ROS_DEBUG("moving sdh in velocity mode");
 				try
 				{
-					pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+                    pthread_mutex_lock(CAN_mutex_.get());
 					sdh_->SetAxisTargetVelocity(axes_,velocities_);
-					pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+                    pthread_mutex_unlock(CAN_mutex_.get());
 					// ROS_DEBUG_STREAM("velocities: " << velocities_[0] << " "<< velocities_[1] << " "<< velocities_[2] << " "<< velocities_[3] << " "<< velocities_[4] << " "<< velocities_[5] << " "<< velocities_[6]);
 				}
 				catch (SDH::cSDHLibraryException* e)
@@ -824,9 +828,9 @@ void SdhNode::updateSdh(bool update)
 			std::vector<double> actualAngles;
 			try
 			{
-				pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_lock(CAN_mutex_.get());
 				actualAngles = sdh_->GetAxisActualAngle( axes_ );
-				pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_unlock(CAN_mutex_.get());
 			}
 			catch (SDH::cSDHLibraryException* e)
 			{
@@ -836,9 +840,9 @@ void SdhNode::updateSdh(bool update)
 			std::vector<double> actualVelocities;
 			try
 			{
-				pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_lock(CAN_mutex_.get());
 				actualVelocities = sdh_->GetAxisActualVelocity( axes_ );
-				pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_unlock(CAN_mutex_.get());
 			}
 			catch (SDH::cSDHLibraryException* e)
 			{
@@ -934,18 +938,18 @@ void SdhNode::updateSdh(bool update)
 			topicPub_ControllerState_.publish(controllermsg);
 
 			// read sdh status
-			pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+            pthread_mutex_lock(CAN_mutex_.get());
 			state_ = sdh_->GetAxisActualState(axes_);
-			pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+            pthread_mutex_unlock(CAN_mutex_.get());
 
 
 			// get the temperature
 //			std::vector<int> axes_;
 			try
 			{
-				pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_lock(CAN_mutex_.get());
 				temp_ = sdh_->GetTemperature(sensors_temp_index_);
-				pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+                pthread_mutex_unlock(CAN_mutex_.get());
 			}
 			catch (SDH::cSDHLibraryException* e)
 			{
@@ -958,19 +962,19 @@ void SdhNode::updateSdh(bool update)
 				if(temp_[i]>48.5)
 				{
 					ROS_ERROR("SDH sensor %d has temperature %f, Shutting down hand...", i, temp_[i]);
-					pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+                    pthread_mutex_lock(CAN_mutex_.get());
 					sdh_->Close();
 					isInitialized_ = false;
-					pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+                    pthread_mutex_unlock(CAN_mutex_.get());
 				}
 			}
 
 			// get the motor currents
 //			try
 //			{
-//				pthread_mutex_lock(&PowerCubeCtrl::m_mutex);
+//				pthread_mutex_lock(CAN_mutex_.get());
 //				motor_currents_ = sdh_->GetAxisMotorCurrent( axes_, sdh_->eMCM_MOVE );
-//				pthread_mutex_unlock(&PowerCubeCtrl::m_mutex);
+//				pthread_mutex_unlock(CAN_mutex_.get());
 //			}
 //			catch (SDH::cSDHLibraryException* e)
 //			{

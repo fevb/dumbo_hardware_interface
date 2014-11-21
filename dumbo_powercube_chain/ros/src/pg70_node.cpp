@@ -38,12 +38,15 @@
 #include <string>
 #include <diagnostic_msgs/DiagnosticArray.h>
 
-PG70Node::PG70Node(std::string name) {
+PG70Node::PG70Node(ros::NodeHandle nh,
+                   boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+                   boost::shared_ptr<canHandle> CAN_handle) :
+    n_(nh)
+{
 
-	n_ = ros::NodeHandle(name);
 	// TODO Auto-generated constructor stub
-	pg70_params_ = new PowerCubeCtrlParams();
-	pg70_ctrl_ = new PG70Gripper(pg70_params_);
+    pg70_params_.reset(new PowerCubeCtrlParams());
+    pg70_ctrl_.reset(new PG70Gripper(pg70_params_, CAN_mutex, CAN_handle));
 
 	topicPub_JointState_ = n_.advertise<sensor_msgs::JointState> ("/joint_states", 1);
     topicPub_ControllerState_ = n_.advertise<control_msgs::JointTrajectoryControllerState>("state", 1);
@@ -60,9 +63,7 @@ PG70Node::PG70Node(std::string name) {
 
 PG70Node::~PG70Node() {
 	// TODO Auto-generated destructor stub
-	ROS_INFO("PG70 Device closed!");
-	delete pg70_ctrl_;
-	delete pg70_params_;
+    ROS_INFO("PG70 Device closed!");
 }
 
 

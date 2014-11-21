@@ -78,12 +78,12 @@ public:
 	PowerCubeCtrlParams()
 	{
 		m_DOF = 0;
-	};
+    }
 
 	/// Destructor
 	~PowerCubeCtrlParams()
 	{
-		;
+
 	}
 
 	/// Initializing

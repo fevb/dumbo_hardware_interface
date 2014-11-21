@@ -88,6 +88,7 @@
 // gripper nodes
 #include <dumbo_powercube_chain/pg70_node.h>
 #include <dumbo_powercube_chain/sdh_node.h>
+#include <boost/scoped_ptr.hpp>
 
 /*!
  * \brief Implementation of ROS node for powercube_chain.
@@ -98,8 +99,7 @@ class PowerCubeChainNode
 {
 
 public:
-  /// create a handle for this node, initialize node
-  ros::NodeHandle n_;
+
 
   /// declaration of topics to publish
   ros::Publisher topicPub_JointState_;
@@ -116,12 +116,6 @@ public:
   ros::ServiceServer srvServer_Stop_;
   ros::ServiceServer srvServer_Recover_;
 
-  /// handle for powercube_chain
-  PowerCubeCtrl* pc_ctrl_;
-
-  /// handle for powercube_chain parameters
-  PowerCubeCtrlParams* pc_params_;
-
   /// member variables
   bool initialized_;
   bool stopped_;
@@ -131,15 +125,16 @@ public:
   
   std::string operation_mode_;
 
-  std::string gripper_;
 
   ///Constructor
-  PowerCubeChainNode()
+  PowerCubeChainNode(ros::NodeHandle nh,
+                     boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+                     boost::shared_ptr<canHandle> CAN_handle) :
+      n_(nh)
   {
-    n_ = ros::NodeHandle("~");
-  	
-    pc_params_ = new PowerCubeCtrlParams();
-    pc_ctrl_ = new PowerCubeCtrl(pc_params_);
+
+    pc_params_.reset(new PowerCubeCtrlParams());
+    pc_ctrl_.reset(new PowerCubeCtrl(pc_params_, CAN_mutex, CAN_handle));
 
     /// implementation of topics to publish
     topicPub_JointState_ = n_.advertise<sensor_msgs::JointState> ("/joint_states", 1);
@@ -165,9 +160,7 @@ public:
   /// Destructor
   ~PowerCubeChainNode()
   {
-	  bool closed = pc_ctrl_->Close();
-	  delete pc_ctrl_;
-	  delete pc_params_;
+      bool closed = pc_ctrl_->Close();
   }
 
   /*!
@@ -326,18 +319,6 @@ public:
 
     pc_params_->SetArmSelect(ArmSelect);
 
-
-    // Get which gripper is connected to the arm
-    if (n_.hasParam("gripper"))
-    {
-    	n_.getParam("gripper", gripper_);
-    }
-
-    else
-    {
-    	ROS_WARN("Parameter gripper not set, initializing %s arm  without gripper...", pc_params_->GetArmSelect().c_str());
-    	gripper_ = "none";
-    }
 
     // initialize joint state messages
     unsigned int dof = pc_params_->GetDOF();
@@ -572,7 +553,7 @@ public:
 
 	  /// command velocities to powercubes
 //	  ros::Time t1 = ros::Time::now();
-	  if (!pc_ctrl_->MoveVel(cmd_vel))
+      if (!pc_ctrl_->moveVel(cmd_vel))
 	  {
 		  error_ = true;
 		  error_msg_ = pc_ctrl_->getErrorMessage();
@@ -603,7 +584,7 @@ public:
 		  ROS_INFO("Initializing powercubes...");
 
 		  /// initialize powercubes
-		  if (pc_ctrl_->Init(pc_params_))
+          if (pc_ctrl_->init())
 		  {
 
 			  initialized_ = true;
@@ -822,16 +803,26 @@ public:
 
   }
 
+
 private:
+
+  /// create a handle for this node, initialize node
+  ros::NodeHandle n_;
+
   sensor_msgs::JointState joint_state_msg_;
   control_msgs::JointTrajectoryControllerState controller_state_msg_;
 
+  /// handle for powercube_chain
+  boost::scoped_ptr<PowerCubeCtrl> pc_ctrl_;
+
+  /// handle for powercube_chain parameters
+  boost::shared_ptr<PowerCubeCtrlParams> pc_params_;
+
+
+
+
 }; //PowerCubeChainNode
 
-
-// initialize static member variables
-pthread_mutex_t PowerCubeCtrl::m_mutex = PTHREAD_MUTEX_INITIALIZER;
-canHandle PowerCubeCtrl::m_DeviceHandle  = 0;
 
 /*!
  * \brief Main loop of ROS node.
@@ -843,40 +834,61 @@ int main(int argc, char** argv)
 	/// initialize ROS, specify name of node
 	ros::init(argc, argv, "powercube_chain");
 
+    ros::NodeHandle nh("~");
+
+    boost::shared_ptr<pthread_mutex_t> CAN_mutex(new pthread_mutex_t);
+    *CAN_mutex = PTHREAD_MUTEX_INITIALIZER;
+    boost::shared_ptr<canHandle> CAN_handle(new canHandle(0));
+
 	// create PowerCubeChainNode
-	PowerCubeChainNode pc_node;
+    PowerCubeChainNode pc_node(nh, CAN_mutex, CAN_handle);
 	pc_node.getROSParameters();
 	pc_node.getRobotDescriptionParameters();
 
+    /// pointers for parallel gripper node and SDH node
+    boost::scoped_ptr<PG70Node> pg70_node;
+    boost::scoped_ptr<SdhNode> sdh_node;
 
-	// create nodes for controlling SDH or PG70 parallel gripper
-	PG70Node *pg70_node = NULL;
-	SdhNode *sdh_node = NULL;
+    // initialize parallel gripper or SDH node
 
-	if(pc_node.gripper_=="PG70")
-	{
-		pg70_node = new PG70Node(pc_node.gripper_+"_controller");
-		pg70_node->getROSParameters();
-		pg70_node->getRobotDescriptionParameters();
-	}
 
-	else if(pc_node.gripper_=="sdh")
-	{
-		sdh_node = new SdhNode(pc_node.gripper_+"_controller");
+    // Get which gripper is connected to the arm
+    std::string gripper;
+    if (nh.hasParam("gripper"))
+    {
+        nh.getParam("gripper", gripper);
+    }
 
-		if(!sdh_node->init())
-		{
-			ROS_ERROR("Error initializing SDH!!!");
-		}
-	}
+    else
+    {
+        ROS_WARN("Parameter gripper not set, initializing arm without gripper...");
+        gripper = "none";
+    }
+
+    ros::NodeHandle gripper_nh(gripper + "_controller");
+
+    if(gripper=="PG70")
+    {
+        pg70_node.reset(new PG70Node(gripper_nh, CAN_mutex, CAN_handle));
+        pg70_node->getROSParameters();
+        pg70_node->getRobotDescriptionParameters();
+    }
+
+    else if(gripper=="sdh")
+    {
+        sdh_node.reset(new SdhNode(gripper_nh, CAN_mutex, CAN_handle));
+
+        if(!sdh_node->init())
+        {
+            ROS_ERROR("Error initializing SDH!!!");
+        }
+    }
 
 	/// get main loop parameters
 	double frequency;
-	if (pc_node.n_.hasParam("frequency"))
+    if (nh.hasParam("frequency"))
 	{
-		pc_node.n_.getParam("frequency", frequency);
-		//frequency of driver has to be much higher then controller frequency
-		frequency *= 1;
+        nh.getParam("frequency", frequency);
 	}
 
 	else
@@ -887,10 +899,10 @@ int main(int argc, char** argv)
 	}
 
 	ros::Duration min_publish_duration;
-	if (pc_node.n_.hasParam("min_publish_duration"))
+    if (nh.hasParam("min_publish_duration"))
 	{
 		double sec;
-		pc_node.n_.getParam("min_publish_duration", sec);
+        nh.getParam("min_publish_duration", sec);
 		min_publish_duration.fromSec(sec);
 	}
 
@@ -913,11 +925,11 @@ int main(int argc, char** argv)
     {
         pc_node.publishState(true);
 
-        if(pc_node.gripper_=="PG70")
+        if(gripper=="PG70")
         {
             pg70_node->publishState(true);
         }
-        else if(pc_node.gripper_=="sdh")
+        else if(gripper=="sdh")
         {
             sdh_node->updateSdh(true);
         }
@@ -928,7 +940,7 @@ int main(int argc, char** argv)
 
 	/// main loop
 	ros::Rate loop_rate(frequency); // Hz
-	while (pc_node.n_.ok())
+    while (nh.ok())
 	{
 
 
@@ -937,7 +949,7 @@ int main(int argc, char** argv)
             pc_node.publishState(false);
 		}
 
-        if(pc_node.gripper_=="PG70")
+        if(gripper=="PG70")
 		{
 			if((ros::Time::now() - pg70_node->last_publish_time_) >= min_publish_duration)
 			{
@@ -945,7 +957,7 @@ int main(int argc, char** argv)
 			}
 		}
 
-        if(pc_node.gripper_=="sdh")
+        if(gripper=="sdh")
 		{
 			if((ros::Time::now() - sdh_node->last_publish_time_) >= min_publish_duration)
 			{
@@ -956,10 +968,7 @@ int main(int argc, char** argv)
 		/// sleep and waiting for messages, callbacks
 		ros::spinOnce();
 		loop_rate.sleep();
-	}
-
-	delete pg70_node;
-	delete sdh_node;
+    }
 
 	return 0;
 }
