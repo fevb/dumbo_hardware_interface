@@ -180,7 +180,7 @@ void ForceTorqueSensor::Disconnect(){
 	}
 }
 
-bool ForceTorqueSensor::Get_ft(geometry_msgs::Wrench &ft_raw)
+bool ForceTorqueSensor::getFT(geometry_msgs::Wrench &ft_raw)
 {
 	FT_CHECK_INITIALIZED();
 	geometry_msgs::Wrench FT_measurement;

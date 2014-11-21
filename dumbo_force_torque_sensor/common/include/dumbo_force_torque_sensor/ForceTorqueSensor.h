@@ -65,7 +65,7 @@ public:
 	}
 
 	// get the raw F/T measurement
-	bool Get_ft(geometry_msgs::Wrench &ft_raw);
+    bool getFT(geometry_msgs::Wrench &ft_raw);
 
 protected:
 	pthread_mutex_t m_CAN_mutex;

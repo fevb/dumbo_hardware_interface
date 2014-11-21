@@ -119,7 +119,7 @@ public:
 
 		if(m_ft_sensor->isInitialized())
 		{
-			if(m_ft_sensor->Get_ft(ft_raw))
+            if(m_ft_sensor->getFT(ft_raw))
 			{
 				ft_raw_stamped.wrench = ft_raw;
 				ft_raw_stamped.header.stamp = ros::Time::now();
