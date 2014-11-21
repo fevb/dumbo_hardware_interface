@@ -91,7 +91,7 @@ PowerCubeCtrl::PowerCubeCtrl(boost::shared_ptr<PowerCubeCtrlParams> params,
     m_CAN_handle = CAN_handle;
 
     // TODO: fix this
-	m_horizon = 0.01; // sec
+    m_horizon = 0.1; // sec
 
 	m_last_time_pub = ros::Time::now();
 
