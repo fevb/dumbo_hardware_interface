@@ -281,43 +281,43 @@ public:
     pc_ctrl_->setHorizon(Horizon);
 
 
-    /// Get arm selection parameter (left or right arm)
-    XmlRpc::XmlRpcValue ArmSelectXmlRpc;
-    std::string ArmSelect;
-    if (n_.hasParam("arm_select"))
+    /// Get arm name parameter (left or right arm)
+    XmlRpc::XmlRpcValue ArmNameXmlRpc;
+    std::string arm_name;
+    if (n_.hasParam("arm_name"))
     {
-    	n_.getParam("arm_select", ArmSelectXmlRpc);
+        n_.getParam("arm_name", ArmNameXmlRpc);
     }
 
     else
     {
-    	ROS_ERROR("Parameter arm_select not set, shutting down node...");
+        ROS_ERROR("Parameter arm_name not set, shutting down node...");
     	n_.shutdown();
     }
 
-    ArmSelect = (std::string)(ArmSelectXmlRpc);
-    if((ArmSelect!="left") && (ArmSelect!="right"))
+    arm_name = (std::string)(ArmNameXmlRpc);
+    if((arm_name!="left") && (arm_name!="right"))
     {
-    	ROS_ERROR("Invalid arm_select parameter, shutting down node... ");
+        ROS_ERROR("Invalid arm_name parameter, shutting down node... ");
     	n_.shutdown();
     }
 
-    // make sure arm select coincides with joint names in the parameter server
+    // make sure arm name coincides with joint names in the parameter server
     JointNames.clear();
     JointNames = pc_params_->GetJointNames();
     for(int i=0; i<(int)(JointNames.size()); i++)
     {
 
-    	if((ArmSelect!=(JointNames[i]).substr(0,4))&&(ArmSelect!=(JointNames[i]).substr(0,5)))
+        if((arm_name!=(JointNames[i]).substr(0,4))&&(arm_name!=(JointNames[i]).substr(0,5)))
     	{
-    		ROS_ERROR("arm_select parameter (%s) does not coincide with joint %d name (%s), shutting down node...",
-    				ArmSelect.c_str(), i, JointNames[i].c_str());
+            ROS_ERROR("arm_name parameter (%s) does not coincide with joint %d name (%s), shutting down node...",
+                    arm_name.c_str(), i, JointNames[i].c_str());
     		n_.shutdown();
     	}
 
     }
 
-    pc_params_->SetArmSelect(ArmSelect);
+    pc_params_->setArmName(arm_name);
 
 
     // initialize joint state messages
@@ -468,7 +468,7 @@ public:
 		  /// command positions to powercubes
 		  if (!pc_ctrl_->MoveJointSpace(cmd_pos))
 		  {
-			  ROS_ERROR("Error executing joint space position command in %s arm.", (pc_params_->GetArmSelect()).c_str());
+              ROS_ERROR("Error executing joint space position command in %s arm.", (pc_params_->getArmName()).c_str());
 			  error_ = true;
 			  error_msg_ = pc_ctrl_->getErrorMessage();
 			  ROS_ERROR("Skipping command: %s",pc_ctrl_->getErrorMessage().c_str());//*** have to fix this
@@ -506,7 +506,7 @@ public:
 	  if (pc_ctrl_->getPC_Status() != PowerCubeCtrl::PC_CTRL_OK)
 	  {
 		  publishState(false);
-		  ROS_ERROR("Error in status of %s arm.", pc_params_->GetArmSelect().c_str());
+          ROS_ERROR("Error in status of %s arm.", pc_params_->getArmName().c_str());
 		  return;
 	  }
 
@@ -629,7 +629,7 @@ public:
           bool closed = pc_ctrl_->Close();
           initialized_ = false;
           res.success.data = true;
-          ROS_INFO("Disconnecting %s arm", pc_params_->GetArmSelect().c_str());
+          ROS_INFO("Disconnecting %s arm", pc_params_->getArmName().c_str());
       }
 
       return true;

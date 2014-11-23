@@ -87,7 +87,7 @@ bool PG70Gripper::Init()
 		return false;
 	}
 
-	std::cout << "Initializing PG70 gripper on the " << m_params->GetArmSelect().c_str();
+    std::cout << "Initializing PG70 gripper on the " << m_params->getArmName().c_str();
     std:: cout << " arm, module id: " << m_params->GetModuleID(0) << " handle: " << *m_CAN_handle<< std::endl;
 
 	std::cout << std::endl << "upperLimits: ";
@@ -141,7 +141,7 @@ bool PG70Gripper::Init()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error resetting gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error resetting gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -152,7 +152,7 @@ bool PG70Gripper::Init()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error setting max vel of gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error setting max vel of gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -162,7 +162,7 @@ bool PG70Gripper::Init()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error setting max acc of gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error setting max acc of gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -173,7 +173,7 @@ bool PG70Gripper::Init()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error setting min pos of gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error setting min pos of gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -183,7 +183,7 @@ bool PG70Gripper::Init()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error setting max pos of gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error setting max pos of gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -194,7 +194,7 @@ bool PG70Gripper::Init()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error resetting gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error resetting gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -206,7 +206,7 @@ bool PG70Gripper::Init()
 
 			if(ret<0)
 			{
-				ROS_ERROR("Error getting gripper pos of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error getting gripper pos of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
             m_positions[i] = (((double)gripper_pos));
@@ -240,7 +240,7 @@ bool PG70Gripper::Init()
 	m_pc_status = PC_CTRL_OK;
 	m_Initialized = true;
 	m_CANDeviceOpened = true;
-	ROS_INFO("Successfully initialized PG70 gripper on %s arm", m_params->GetArmSelect().c_str());
+    ROS_INFO("Successfully initialized PG70 gripper on %s arm", m_params->getArmName().c_str());
 
 	return true;
 }
@@ -263,7 +263,7 @@ bool PG70Gripper::Recover()
         pthread_mutex_unlock(m_CAN_mutex.get());
 		if(ret<0)
 		{
-			ROS_ERROR("Error resetting gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+            ROS_ERROR("Error resetting gripper of %s arm.", (m_params->getArmName().c_str()));
 			return false;
 		}
 
@@ -352,7 +352,7 @@ bool PG70Gripper::updateStates()
 
 		if(ret<0)
 		{
-			ROS_ERROR("Error getting gripper pos of %s arm.", (m_params->GetArmSelect().c_str()));
+            ROS_ERROR("Error getting gripper pos of %s arm.", (m_params->getArmName().c_str()));
 			return false;
 		}
         m_positions[i] = (((double)gripper_pos));
@@ -539,7 +539,7 @@ bool PG70Gripper::DoHoming()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error homing gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error homing gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -559,7 +559,7 @@ bool PG70Gripper::DoHoming()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error resetting gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error resetting gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -571,7 +571,7 @@ bool PG70Gripper::DoHoming()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error setting max vel of gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error setting max vel of gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -581,7 +581,7 @@ bool PG70Gripper::DoHoming()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error setting max acc of gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error setting max acc of gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -592,7 +592,7 @@ bool PG70Gripper::DoHoming()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error setting min pos of gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error setting min pos of gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -602,7 +602,7 @@ bool PG70Gripper::DoHoming()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error setting max pos of gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error setting max pos of gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -613,7 +613,7 @@ bool PG70Gripper::DoHoming()
             pthread_mutex_unlock(m_CAN_mutex.get());
 			if(ret<0)
 			{
-				ROS_ERROR("Error resetting gripper of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error resetting gripper of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
 
@@ -625,7 +625,7 @@ bool PG70Gripper::DoHoming()
 
 			if(ret<0)
 			{
-				ROS_ERROR("Error getting gripper pos of %s arm.", (m_params->GetArmSelect().c_str()));
+                ROS_ERROR("Error getting gripper pos of %s arm.", (m_params->getArmName().c_str()));
 				return false;
 			}
             m_positions[i] = (((double)gripper_pos));

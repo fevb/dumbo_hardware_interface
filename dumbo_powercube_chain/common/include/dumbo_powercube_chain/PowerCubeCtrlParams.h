@@ -177,14 +177,14 @@ public:
 	}
 
 
-	std::string GetArmSelect()
+    std::string getArmName()
 	{
-		return m_ArmSelect;
+        return m_arm_name;
 	}
 
-	void SetArmSelect(std::string ArmSelect)
+    void setArmName(std::string arm_name)
 	{
-		m_ArmSelect = ArmSelect;
+        m_arm_name = arm_name;
 	}
 
 	// ToDo: Check the following
@@ -275,7 +275,7 @@ private:
 	std::vector<int> m_ModulIDs;
 	std::vector<std::string> m_JointNames;
 	int m_CAN_Channel;
-	std::string m_ArmSelect;
+    std::string m_arm_name;
 	int m_Baudrate;
 	std::vector<double> m_Offsets;
 	std::vector<double> m_UpperLimits;

@@ -192,7 +192,7 @@ bool PowerCubeCtrl::init()
 
 	std::cout << std::endl << "=========================================================================== " << std::endl;
 	std::ostringstream InitStr;
-	InitStr << (m_params->GetArmSelect()).c_str();
+    InitStr << (m_params->getArmName()).c_str();
 	std::cout << "initstring = " << InitStr.str().c_str() << std::endl;
 
 	/// open device
@@ -237,7 +237,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 		if( (ret!=0) || (state & PC_STATE_ERROR))
 		{
-			ROS_ERROR("State error in module %d , %s arm  after opening device", ModulIDs[i], m_params->GetArmSelect().c_str());
+            ROS_ERROR("State error in module %d , %s arm  after opening device", ModulIDs[i], m_params->getArmName().c_str());
 			std::ostringstream errorMsg;
 			errorMsg << "Error module state " << i;
 			m_ErrorMessage = errorMsg.str();
@@ -270,7 +270,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
-		ROS_ERROR("Error resetting module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+        ROS_ERROR("Error resetting module %d of %s arm.", ModulIDs[i], (m_params->getArmName().c_str()));
 		return false;
 	      }
 
@@ -280,7 +280,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
-		ROS_ERROR("Error setting max vel module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+        ROS_ERROR("Error setting max vel module %d of %s arm.", ModulIDs[i], (m_params->getArmName().c_str()));
 		return false;
 	      }
 
@@ -290,7 +290,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
-		ROS_ERROR("Error setting max acc module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+        ROS_ERROR("Error setting max acc module %d of %s arm.", ModulIDs[i], (m_params->getArmName().c_str()));
 		return false;
 	      }
 
@@ -301,7 +301,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
-		ROS_ERROR("Error setting min pos module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+        ROS_ERROR("Error setting min pos module %d of %s arm.", ModulIDs[i], (m_params->getArmName().c_str()));
 		return false;
 	      }
 
@@ -311,7 +311,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
-		ROS_ERROR("Error setting max pos module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+        ROS_ERROR("Error setting max pos module %d of %s arm.", ModulIDs[i], (m_params->getArmName().c_str()));
 		return false;
 	      }
 
@@ -330,7 +330,7 @@ bool PowerCubeCtrl::init()
 		if(ret<0)
 		{
 			Stop();
-			ROS_ERROR("Error getting pos of %d module of %s arm", m_params->GetModuleID(i), m_params->GetArmSelect().c_str());
+            ROS_ERROR("Error getting pos of %d module of %s arm", m_params->GetModuleID(i), m_params->getArmName().c_str());
 			return false;
 		}
 		m_positions[i] = pos;
@@ -603,7 +603,7 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	{
 		for(unsigned int i=0; i < DOF; i++)
 		{
-		  ROS_ERROR("Acceleration limit surpassed, sending zero velocity to the %s arm!", m_params->GetArmSelect().c_str());
+          ROS_ERROR("Acceleration limit surpassed, sending zero velocity to the %s arm!", m_params->getArmName().c_str());
           scaled_velocities_[i] = 0.0;
 		}
 	}
@@ -1175,7 +1175,7 @@ bool PowerCubeCtrl::doHoming()
           pthread_mutex_unlock(m_CAN_mutex.get());
 		  if(state & PC_STATE_ERROR)
 		  {
-		    ROS_ERROR("State error module %d, %s arm after homing", ModuleIDs[i], m_params->GetArmSelect().c_str());
+            ROS_ERROR("State error module %d, %s arm after homing", ModuleIDs[i], m_params->getArmName().c_str());
 			  m_pc_status = PC_CTRL_NOT_HOMED;
 			  return false;
 		  }
@@ -1194,6 +1194,6 @@ bool PowerCubeCtrl::doHoming()
 
   // modules successfully homed
   m_pc_status = PC_CTRL_OK;
-  ROS_INFO("%s arm successfully homed.", (m_params->GetArmSelect()).c_str());
+  ROS_INFO("%s arm successfully homed.", (m_params->getArmName().c_str()));
   return true;
 }
