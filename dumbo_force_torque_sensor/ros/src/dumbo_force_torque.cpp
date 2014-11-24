@@ -68,7 +68,7 @@ public:
 
 		if(GetROSParams())
 		{
-			m_ft_sensor = new ForceTorqueSensor(m_serial_number, m_arm_select);
+            m_ft_sensor = new ForceTorqueSensor(m_serial_number, m_arm_name);
 		}
 	}
 
@@ -92,22 +92,22 @@ public:
 			return false;
 		}
 
-		std::string ArmSelect;
-		if (n_.hasParam("arm_select"))
+        std::string arm_name;
+        if (n_.hasParam("arm_name"))
 		{
-			n_.getParam("arm_select", ArmSelect);
+            n_.getParam("arm_name", arm_name);
 		}
 
 		else
 		{
-			ROS_ERROR("Parameter ArmSelect not available");
+            ROS_ERROR("Parameter arm_name not available");
 			n_.shutdown();
 			return false;
 		}
 
 
 		m_serial_number = SerialNumber;
-		m_arm_select = ArmSelect;
+        m_arm_name = arm_name;
 
 		return true;
 	}
@@ -123,7 +123,7 @@ public:
 			{
 				ft_raw_stamped.wrench = ft_raw;
 				ft_raw_stamped.header.stamp = ros::Time::now();
-				ft_raw_stamped.header.frame_id = "/" + m_arm_select + "_arm_ft_sensor";
+                ft_raw_stamped.header.frame_id = "/" + m_arm_name + "_arm_ft_sensor";
 				topicPub_ft_raw_.publish(ft_raw_stamped);
 			}
 		}
@@ -156,7 +156,7 @@ public:
 
 private:
 	std::string m_serial_number;
-	std::string m_arm_select;
+    std::string m_arm_name;
 
 };
 int main(int argc, char** argv)

@@ -51,7 +51,7 @@ if ( isInitialized()==false )											\
 using namespace Eigen;
 
 ForceTorqueSensor::ForceTorqueSensor(std::string Serial_Number,
-		std::string ArmSelect)
+        std::string arm_name)
 {
 
 	m_CAN_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -60,8 +60,8 @@ ForceTorqueSensor::ForceTorqueSensor(std::string Serial_Number,
 	m_Initialized = false;
 
 	m_SerialNumber = Serial_Number;
-	m_ArmSelect = ArmSelect;
-	m_sensor_frame_id = "/"+m_ArmSelect+"_arm_ft_sensor";
+    m_arm_name = arm_name;
+    m_sensor_frame_id = "/"+m_arm_name+"_arm_ft_sensor";
 
 //	m_tf_listener = new tf::TransformListener(ros::Duration(10.0));
 
@@ -89,7 +89,7 @@ bool ForceTorqueSensor::Init(){
 	}
 
 	ROS_INFO("----------------------------------------------");
-	ROS_INFO("Initializing %s arm F/T sensor.", m_ArmSelect.c_str());
+    ROS_INFO("Initializing %s arm F/T sensor.", m_arm_name.c_str());
 	ROS_INFO("Serial Number: %s", m_SerialNumber.c_str());
 
 
@@ -139,7 +139,7 @@ bool ForceTorqueSensor::Init(){
 			{
 				found++;
 				m_CAN_Channel = channel;
-				ROS_INFO("Found %s arm F/T sensor on channel: %d", m_ArmSelect.c_str(), channel);
+                ROS_INFO("Found %s arm F/T sensor on channel: %d", m_arm_name.c_str(), channel);
 			}
 		}
 	}
@@ -147,7 +147,7 @@ bool ForceTorqueSensor::Init(){
 
 	if(found==0)
 	{
-		ROS_ERROR("%s arm F/T sensor not found", m_ArmSelect.c_str());
+        ROS_ERROR("%s arm F/T sensor not found", m_arm_name.c_str());
 		return false;
 	}
 
@@ -182,8 +182,7 @@ void ForceTorqueSensor::Disconnect(){
 
 bool ForceTorqueSensor::getFT(geometry_msgs::Wrench &ft_raw)
 {
-	FT_CHECK_INITIALIZED();
-	geometry_msgs::Wrench FT_measurement;
+    FT_CHECK_INITIALIZED();
 	double ft[6];
 	int ret_val,i,j;
 	signed short int s_out_short_int[7];
@@ -195,7 +194,7 @@ bool ForceTorqueSensor::getFT(geometry_msgs::Wrench &ft_raw)
 
 	if(ret_val<0)
 	{
-		ROS_ERROR("Error reading F/T sensor %s arm.", m_ArmSelect.c_str());
+        ROS_ERROR("Error reading F/T sensor %s arm.", m_arm_name.c_str());
 		return false;
 	}
 
@@ -222,7 +221,7 @@ bool ForceTorqueSensor::getFT(geometry_msgs::Wrench &ft_raw)
 	//for(i=0; i<6; i++)std::cout << ft[i]
 
 	// correct axis definitions
-	if(m_ArmSelect=="left") // left arm
+    if(m_arm_name=="left") // left arm
 	{
 		ft_raw.force.x = -1*ft[1];
 		ft_raw.force.y = ft[0];

@@ -47,9 +47,9 @@
 class ForceTorqueSensor {
 
 public:
-	// ArmSelect can be either 'left' or 'right'
+    // arm_name can be either 'left' or 'right'
 	ForceTorqueSensor(std::string Serial_Number,
-			std::string ArmSelect);
+            std::string arm_name);
 
 	virtual ~ForceTorqueSensor();
 
@@ -76,7 +76,7 @@ protected:
 
 
 	std::string m_SerialNumber;
-	std::string m_ArmSelect;
+    std::string m_arm_name;
 	std::string m_sensor_frame_id;
 
 
