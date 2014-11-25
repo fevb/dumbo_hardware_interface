@@ -48,7 +48,6 @@ if ( isInitialized()==false )											\
     return false;														\
 }
 
-using namespace Eigen;
 
 ForceTorqueSensor::ForceTorqueSensor(std::string Serial_Number,
         std::string arm_name)
@@ -131,7 +130,9 @@ bool ForceTorqueSensor::Init(){
 
 			if(serial_number!=m_SerialNumber)
 			{
+                pthread_mutex_lock(&m_CAN_mutex);
 				pc_listen_for_response(h,&msg);
+                pthread_mutex_unlock(&m_CAN_mutex);
 				Disconnect();
 			}
 
@@ -171,16 +172,16 @@ bool ForceTorqueSensor::Init(){
 void ForceTorqueSensor::Disconnect(){
 	if(m_CANDeviceOpened)
 	{
-		pthread_mutex_lock(&m_CAN_mutex);
-		canBusOff(m_DeviceHandle);
+        pthread_mutex_lock(&m_CAN_mutex);
+        canBusOff(m_DeviceHandle);
 		(void)canClose(m_DeviceHandle);
-		pthread_mutex_unlock(&m_CAN_mutex);
+        pthread_mutex_unlock(&m_CAN_mutex);
 		m_CANDeviceOpened = false;
 		m_Initialized = false;
-	}
+    }
 }
 
-bool ForceTorqueSensor::getFT(geometry_msgs::Wrench &ft_raw)
+bool ForceTorqueSensor::getFT(std::vector<double> &force, std::vector<double> &torque)
 {
     FT_CHECK_INITIALIZED();
 	double ft[6];
@@ -223,22 +224,22 @@ bool ForceTorqueSensor::getFT(geometry_msgs::Wrench &ft_raw)
 	// correct axis definitions
     if(m_arm_name=="left") // left arm
 	{
-		ft_raw.force.x = -1*ft[1];
-		ft_raw.force.y = ft[0];
-		ft_raw.force.z = ft[2];
-		ft_raw.torque.x = -1*ft[4];
-		ft_raw.torque.y = ft[3];
-		ft_raw.torque.z = ft[5];
+        force[0] = -1*ft[1];
+        force[1] = ft[0];
+        force[2] =  ft[2];
+        torque[0] = -1*ft[4];
+        torque[1] = ft[3];
+        torque[2] = ft[5];
 	}
 
 	else
 	{
-		ft_raw.force.x = ft[1];
-		ft_raw.force.y = -1*ft[0];
-		ft_raw.force.z = ft[2];
-		ft_raw.torque.x = ft[4];
-		ft_raw.torque.y = -1*ft[3];
-		ft_raw.torque.z = ft[5];
+        force[0] = ft[1];
+        force[1] = -1*ft[0];
+        force[2] = ft[2];
+        torque[0] = ft[4];
+        torque[1] = -1*ft[3];
+        torque[2] = ft[5];
 	}
 
 

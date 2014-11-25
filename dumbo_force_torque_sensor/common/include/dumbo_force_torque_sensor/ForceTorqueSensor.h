@@ -36,12 +36,10 @@
 #define FORCETORQUESENSOR_H_
 
 #include <string>
+#include <vector>
 #include <kvaser_canlib/canlib.h>
-#include <geometry_msgs/Wrench.h>
-#include <geometry_msgs/WrenchStamped.h>
 #include <pthread.h>
 #include <dumbo_force_torque_sensor/ft_sensor_function.h>
-#include <eigen3/Eigen/Core>
 
 
 class ForceTorqueSensor {
@@ -65,7 +63,8 @@ public:
 	}
 
 	// get the raw F/T measurement
-    bool getFT(geometry_msgs::Wrench &ft_raw);
+    bool getFT(std::vector<double> &force,
+               std::vector<double> &torque);
 
 protected:
 	pthread_mutex_t m_CAN_mutex;
