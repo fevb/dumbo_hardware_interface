@@ -160,7 +160,7 @@ public:
   /// Destructor
   ~PowerCubeChainNode()
   {
-      bool closed = pc_ctrl_->Close();
+      bool closed = pc_ctrl_->close();
   }
 
   /*!
@@ -626,7 +626,7 @@ public:
 
       else
       {
-          bool closed = pc_ctrl_->Close();
+          bool closed = pc_ctrl_->close();
           initialized_ = false;
           res.success.data = true;
           ROS_INFO("Disconnecting %s arm", pc_params_->getArmName().c_str());
