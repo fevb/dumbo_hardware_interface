@@ -55,6 +55,14 @@ PG70Gripper::PG70Gripper(boost::shared_ptr<PowerCubeCtrlParams> params,
 
 }
 
+PG70Gripper::PG70Gripper(boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+                         boost::shared_ptr<canHandle> CAN_handle) :
+    PowerCubeCtrl(CAN_mutex, CAN_handle),
+    m_executing_pos_command(false)
+{
+
+}
+
 
 PG70Gripper::~PG70Gripper() {
 	// LWA powercube chain class takes care of closing the CAN bus
