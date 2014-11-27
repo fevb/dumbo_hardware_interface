@@ -126,7 +126,7 @@ PowerCubeCtrl::PowerCubeCtrl(boost::shared_ptr<pthread_mutex_t> CAN_mutex,
  */
 PowerCubeCtrl::~PowerCubeCtrl()
 {
-	Stop();
+    stop();
 	if (m_CANDeviceOpened)
 	{
         pthread_mutex_lock(m_CAN_mutex.get());
@@ -356,7 +356,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 		if(ret<0)
 		{
-			Stop();
+            stop();
             ROS_ERROR("Error getting pos of %d module of %s arm", params_->GetModuleID(i), params_->getArmName().c_str());
 			return false;
 		}
@@ -919,7 +919,7 @@ void PowerCubeCtrl::updateVelocities(std::vector<double> pos_temp, double delta_
 /*!
  * \brief Stops the manipulator immediately
  */
-bool PowerCubeCtrl::Stop()
+bool PowerCubeCtrl::stop()
 {
 	/// stop should be executed without checking any conditions
     pthread_mutex_lock(m_CAN_mutex.get());
@@ -935,7 +935,7 @@ bool PowerCubeCtrl::Stop()
 /*!
  * \brief Recovers the manipulator after an emergency stop
  */
-bool PowerCubeCtrl::Recover()
+bool PowerCubeCtrl::recover()
 {
      unsigned int DOF = params_->GetDOF();
 

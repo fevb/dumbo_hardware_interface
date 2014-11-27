@@ -648,7 +648,7 @@ public:
 	  ROS_INFO("Stopping powercubes...");
 
 	  /// stop powercubes
-	  if (pc_ctrl_->Stop())
+      if (pc_ctrl_->stop())
 	  {
 		  res.success.data = true;
 		  ROS_INFO("...stopping powercubes successful.");
@@ -676,7 +676,7 @@ public:
 	  if (initialized_)
 	  {
 		  /// stopping all arm movements
-		  if (pc_ctrl_->Recover())
+          if (pc_ctrl_->recover())
 		  {
 			  error_ = false;
 			  error_msg_ = "";

@@ -176,12 +176,12 @@ public:
 	/*!
 	 * \brief Stops the Manipulator immediately
 	 */
-	bool Stop();
+    bool stop();
 
 	/*!
 	 * \brief Recovery after emergency stop or power supply failure
 	 */
-	bool Recover();
+    bool recover();
 
 	//////////////////////////////////
 	// functions to set parameters: //
