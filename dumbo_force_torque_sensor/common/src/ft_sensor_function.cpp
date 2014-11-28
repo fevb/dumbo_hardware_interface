@@ -63,7 +63,23 @@ int get_SG_data(canHandle canbus1,bool wait, signed short int *s_out_short_int){
 	if (ret_val!=canOK) return(-1);
 	endian_short_int_conversion(s_out_short_int,7);
 	return (canOK);
-}	
+}
+
+int request_SG_data(canHandle canbus1, bool wait)
+{
+    int ret_val=canOK;
+    ret_val=canSensor_Send(canbus1,CB_Shunk_ReadData,NULL, wait);
+    if (ret_val!=canOK) return(-1);
+}
+
+int read_SG_data(canHandle canbus1, bool wait, signed short *s_out_short_int)
+{
+    int ret_val=canOK;
+    ret_val=canSensor_Recive(canbus1,CB_Shunk_ReadData,(void*)s_out_short_int,wait,NULL);
+    if (ret_val!=canOK) return(-1);
+    endian_short_int_conversion(s_out_short_int,7);
+    return (canOK);
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////						
 int get_Transducer_CalMatrix(canHandle h,float *out){ //input/output: *float[6][6]

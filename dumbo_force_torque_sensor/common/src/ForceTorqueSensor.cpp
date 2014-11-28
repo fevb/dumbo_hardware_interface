@@ -49,8 +49,7 @@ if ( isInitialized()==false )											\
 }
 
 
-ForceTorqueSensor::ForceTorqueSensor(std::string Serial_Number,
-        std::string arm_name)
+ForceTorqueSensor::ForceTorqueSensor()
 {
 
 	m_CAN_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -58,9 +57,6 @@ ForceTorqueSensor::ForceTorqueSensor(std::string Serial_Number,
 	m_CANDeviceOpened = false;
 	m_Initialized = false;
 
-	m_SerialNumber = Serial_Number;
-    m_arm_name = arm_name;
-    m_sensor_frame_id = "/"+m_arm_name+"_arm_ft_sensor";
 
 //	m_tf_listener = new tf::TransformListener(ros::Duration(10.0));
 
@@ -68,11 +64,16 @@ ForceTorqueSensor::ForceTorqueSensor(std::string Serial_Number,
 
 
 ForceTorqueSensor::~ForceTorqueSensor() {
-	Disconnect();
+    disconnect();
 }
 
 
-bool ForceTorqueSensor::Init(){
+bool ForceTorqueSensor::init(const std::string &serial_number,
+                             const std::string &arm_name)
+{
+
+    m_serial_number = serial_number;
+    m_arm_name = arm_name;
 
 	canHandle h;
 	int ret = -1;
@@ -89,7 +90,7 @@ bool ForceTorqueSensor::Init(){
 
 	ROS_INFO("----------------------------------------------");
     ROS_INFO("Initializing %s arm F/T sensor.", m_arm_name.c_str());
-	ROS_INFO("Serial Number: %s", m_SerialNumber.c_str());
+    ROS_INFO("Serial Number: %s", m_serial_number.c_str());
 
 
 	ret = canGetNumberOfChannels(&num_channels);
@@ -111,7 +112,7 @@ bool ForceTorqueSensor::Init(){
 
 		if(ret<0)
 		{
-			Disconnect();
+            disconnect();
 		}
 
 		else
@@ -128,12 +129,12 @@ bool ForceTorqueSensor::Init(){
 			pthread_mutex_unlock(&m_CAN_mutex);
 			serial_number.assign(serial_char, 6);
 
-			if(serial_number!=m_SerialNumber)
+            if(serial_number!=m_serial_number)
 			{
                 pthread_mutex_lock(&m_CAN_mutex);
 				pc_listen_for_response(h,&msg);
                 pthread_mutex_unlock(&m_CAN_mutex);
-				Disconnect();
+                disconnect();
 			}
 
 			else
@@ -169,7 +170,7 @@ bool ForceTorqueSensor::Init(){
 	return true;
 }
 
-void ForceTorqueSensor::Disconnect(){
+bool ForceTorqueSensor::disconnect(){
 	if(m_CANDeviceOpened)
 	{
         pthread_mutex_lock(&m_CAN_mutex);
@@ -177,8 +178,10 @@ void ForceTorqueSensor::Disconnect(){
 		(void)canClose(m_DeviceHandle);
         pthread_mutex_unlock(&m_CAN_mutex);
 		m_CANDeviceOpened = false;
-		m_Initialized = false;
+        m_Initialized = false;
+        return true;
     }
+    return false;
 }
 
 bool ForceTorqueSensor::getFT(std::vector<double> &force, std::vector<double> &torque)
@@ -244,4 +247,88 @@ bool ForceTorqueSensor::getFT(std::vector<double> &force, std::vector<double> &t
 
 
 	return true;
+}
+
+bool ForceTorqueSensor::requestFT()
+{
+    FT_CHECK_INITIALIZED();
+    int ret_val;
+
+    pthread_mutex_lock(&m_CAN_mutex);
+    ret_val = request_SG_data(m_DeviceHandle, false);
+    pthread_mutex_unlock(&m_CAN_mutex);
+
+    if(ret_val<0)
+    {
+        ROS_ERROR("Error reading F/T sensor %s arm.", m_arm_name.c_str());
+        return false;
+    }
+
+    return true;
+
+}
+
+bool ForceTorqueSensor::readFT(std::vector<double> &force, std::vector<double> &torque)
+{
+    FT_CHECK_INITIALIZED();
+    double ft[6];
+    int ret_val,i,j;
+    signed short int s_out_short_int[7];
+    signed short int SG[6];
+
+    pthread_mutex_lock(&m_CAN_mutex);
+    ret_val = read_SG_data(m_DeviceHandle, false, &s_out_short_int[0]);
+    pthread_mutex_unlock(&m_CAN_mutex);
+
+    if(ret_val<0)
+    {
+        ROS_ERROR("Error reading F/T sensor %s arm.", m_arm_name.c_str());
+        return false;
+    }
+
+    // For some reason, the SG's are in strange order. this fixes:
+    SG[0] = s_out_short_int[1];
+    SG[1] = s_out_short_int[4];
+    SG[2] = s_out_short_int[2];
+    SG[3] = s_out_short_int[5];
+    SG[4] = s_out_short_int[3];
+    SG[5] = s_out_short_int[6];
+
+
+    // Calculate F/T via cal matrix:
+    for(i=0;i<6;i++)
+    {
+        ft[i] = 0;
+        for(j=0;j<6;j++)
+        {
+            ft[i] += ((double)SG[j])*m_Calibration_Matrix[i][j];
+        }
+//		ft[i] += m_Bias[i];
+    }
+
+    //for(i=0; i<6; i++)std::cout << ft[i]
+
+    // correct axis definitions
+    if(m_arm_name=="left") // left arm
+    {
+        force[0] = -1*ft[1];
+        force[1] = ft[0];
+        force[2] =  ft[2];
+        torque[0] = -1*ft[4];
+        torque[1] = ft[3];
+        torque[2] = ft[5];
+    }
+
+    else
+    {
+        force[0] = ft[1];
+        force[1] = -1*ft[0];
+        force[2] = ft[2];
+        torque[0] = ft[4];
+        torque[1] = -1*ft[3];
+        torque[2] = ft[5];
+    }
+
+
+    return true;
 }

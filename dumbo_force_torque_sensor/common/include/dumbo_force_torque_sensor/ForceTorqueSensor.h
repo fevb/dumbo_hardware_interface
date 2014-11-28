@@ -46,16 +46,16 @@ class ForceTorqueSensor {
 
 public:
     // arm_name can be either 'left' or 'right'
-	ForceTorqueSensor(std::string Serial_Number,
-            std::string arm_name);
+    ForceTorqueSensor();
 
 	virtual ~ForceTorqueSensor();
 
 	// initialize and connect to the sensor
-	bool Init();
+    bool init(const std::string &serial_number,
+              const std::string &arm_name);
 
 	// disconnect from the CAN bus
-	void Disconnect();
+    bool disconnect();
 
 	bool isInitialized()
 	{
@@ -66,6 +66,15 @@ public:
     bool getFT(std::vector<double> &force,
                std::vector<double> &torque);
 
+    // requests a new FT measurement
+    // via CAN bus
+    bool requestFT();
+
+    // reads FT measurement from CAN bus
+    // after a request has been sent
+    bool readFT(std::vector<double> &force,
+                std::vector<double> &torque);
+
 protected:
 	pthread_mutex_t m_CAN_mutex;
 	canHandle m_DeviceHandle;
@@ -74,9 +83,8 @@ protected:
 	bool m_CANDeviceOpened;
 
 
-	std::string m_SerialNumber;
+    std::string m_serial_number;
     std::string m_arm_name;
-	std::string m_sensor_frame_id;
 
 
 	float m_Calibration_Matrix[6][6];

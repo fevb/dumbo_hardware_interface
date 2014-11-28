@@ -68,7 +68,7 @@ public:
 
 		if(GetROSParams())
 		{
-            m_ft_sensor = new ForceTorqueSensor(m_serial_number, m_arm_name);
+            m_ft_sensor = new ForceTorqueSensor();
 		}
 	}
 
@@ -139,7 +139,7 @@ public:
 
 	bool srvCallback_Connect(cob_srvs::Trigger::Request &req, cob_srvs::Trigger::Response &res)
 	{
-		if(m_ft_sensor->Init())
+        if(m_ft_sensor->init(m_serial_number, m_arm_name))
 		{
 			res.success.data = true;
 			return true;
@@ -153,7 +153,7 @@ public:
 
 	bool srvCallback_Disconnect(cob_srvs::Trigger::Request &req, cob_srvs::Trigger::Response &res)
 	{
-		m_ft_sensor->Disconnect();
+        m_ft_sensor->disconnect();
 		ROS_INFO("F/T sensor disconnected.");
 		res.success.data = true;
 		return true;

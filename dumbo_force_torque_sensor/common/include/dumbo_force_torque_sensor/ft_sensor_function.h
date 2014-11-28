@@ -42,6 +42,11 @@
 
 int Force_Torque_Data(double *out_FT,signed short int SG_Data[7],float Transducer_Matrix[6][6],float bias[6]); //output *double[6]
 int get_SG_data(canHandle canbus1,bool wait, signed short int *s_out_short_int); //input/output: *signed short int[7]
+
+// get_SG_data split in 2 parts: request measurement and read measurement
+int request_SG_data(canHandle canbus1, bool wait);
+int read_SG_data(canHandle canbus1,bool wait, signed short int *s_out_short_int);
+
 int get_Transducer_CalMatrix(canHandle h,float *out); //input/output: *float[6][6]
 int get_Serial_Number(canHandle canbus1,bool wait, char *out_char_eight); //input/output: *char[8]
 int set_Calibration(canHandle canbus1,bool wait, int n_calib,char *out_char); //input/output: *char
