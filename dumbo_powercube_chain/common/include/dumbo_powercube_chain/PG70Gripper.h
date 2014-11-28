@@ -51,7 +51,7 @@ public:
 
 	virtual ~PG70Gripper();
 
-	bool CloseDevice()
+    bool close()
 	{
 		if(m_CANDeviceOpened)
 		{
@@ -67,9 +67,9 @@ public:
 	}
 
 	// it is assumed that CAN communication has started with PowerCubeCtrl object
-	bool Init();
+    bool init();
 
-	bool Recover();
+    bool recover();
 
 	bool updateStates();
 

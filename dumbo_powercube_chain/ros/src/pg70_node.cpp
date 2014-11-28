@@ -278,7 +278,7 @@ bool PG70Node::srvCallback_Init(cob_srvs::Trigger::Request &req, cob_srvs::Trigg
 	{
 		ROS_INFO("Initializing PG70 gripper...");
 
-		if(pg70_ctrl_->Init())
+        if(pg70_ctrl_->init())
 		{
 			initialized_ = true;
 			res.success.data = true;
@@ -344,7 +344,7 @@ bool PG70Node::srvCallback_Recover(cob_srvs::Trigger::Request &req,
 	if (initialized_)
 	{
 		/// stopping all arm movements
-		if (pg70_ctrl_->Recover())
+        if (pg70_ctrl_->recover())
 		{
 			error_ = false;
 			error_msg_ = "";

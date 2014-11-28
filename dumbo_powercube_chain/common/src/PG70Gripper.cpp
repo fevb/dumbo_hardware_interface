@@ -66,10 +66,10 @@ PG70Gripper::PG70Gripper(boost::shared_ptr<pthread_mutex_t> CAN_mutex,
 
 PG70Gripper::~PG70Gripper() {
 	// LWA powercube chain class takes care of closing the CAN bus
-	CloseDevice();
+    close();
 }
 
-bool PG70Gripper::Init()
+bool PG70Gripper::init()
 {
 	int ret = 0;
     int DOF = params_->GetDOF();
@@ -253,7 +253,7 @@ bool PG70Gripper::Init()
 	return true;
 }
 
-bool PG70Gripper::Recover()
+bool PG70Gripper::recover()
 {
 	PCTRL_CHECK_INITIALIZED();
 	int ret = 0;
