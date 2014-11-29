@@ -926,9 +926,6 @@ bool PowerCubeCtrl::stop()
     PCube_haltAll(*m_CAN_handle);
     pthread_mutex_unlock(m_CAN_mutex.get());
 
-	/// after halt the modules don't accept move commands any more, they first have to be reset
-    ros::Duration(0.5).sleep();
-
 	return true;
 }
 
