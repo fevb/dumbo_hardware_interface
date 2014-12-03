@@ -693,7 +693,7 @@ int PCube_moveStepExtendedNoRead(canHandle DeviceHandle, int ModuleID, float tar
 
     unsigned short int target_time_ = target_time;
     dlc = set_data_float_uint16(msg, &fangle, &target_time_);
-    pc_send_command_to_module_nowait(dumbo_cube, msg, dlc);
+    pc_send_command_to_module(dumbo_cube, msg, dlc);
 
     return ret;
 }

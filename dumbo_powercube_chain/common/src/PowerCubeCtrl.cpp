@@ -878,6 +878,8 @@ bool PowerCubeCtrl::readState(unsigned int module_number, bool wait_for_response
 {
     float pos;
 
+    pthread_mutex_lock(m_CAN_mutex.get());
+
     int ret = PCube_readState(*m_CAN_handle, params_->GetModuleID(module_number), &m_status[module_number], &m_dios[module_number], &pos, wait_for_response);
 
     m_positions[module_number] = (double)pos;
@@ -886,10 +888,13 @@ bool PowerCubeCtrl::readState(unsigned int module_number, bool wait_for_response
     // TODO: this might be wrong if we are only updating one joint at a time
     updateVelocities(pos_temp_, delta_t_);
 
+    pthread_mutex_unlock(m_CAN_mutex.get());
     if(ret!=0)
     {
         return false;
     }
+
+    return true;
 }
 
 // Calculation of velocities based on vel = 1/(6*dt) * (-pos(t-3) - 3*pos(t-2) + 3*pos(t-1) + pos(t))
