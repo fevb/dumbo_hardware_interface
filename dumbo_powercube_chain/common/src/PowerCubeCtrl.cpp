@@ -377,7 +377,7 @@ bool PowerCubeCtrl::init()
 	//setASyncMotion();
 	m_pc_status = PC_CTRL_OK;
 	m_Initialized = true;
-	ROS_INFO("Successfully initialized");
+    ROS_INFO("Successfully initialized");
 	return true;
 
 	// All modules initialized successfully
@@ -783,18 +783,18 @@ bool PowerCubeCtrl::moveVel(double vel, unsigned int module_number, bool wait_fo
     m_last_time_pub = ros::Time::now();
 
     //check for acceleration limits and scale
-    //todo
+    //TODO fix this max acceleration check
 
-    bool acc_limit_passed = false;
+//    bool acc_limit_passed = false;
 
-    if(fabs(scaled_velocity - m_velocities[module_number]) > fabs(maxAcc[module_number]))
-        acc_limit_passed = true;
+//    if(fabs(scaled_velocity - m_velocities[module_number]) > fabs(maxAcc[module_number]))
+//        acc_limit_passed = true;
 
-    if(acc_limit_passed)
-    {
-        ROS_ERROR("Acceleration limit surpassed, sending zero velocity to the %s arm!", params_->getArmName().c_str());
-        scaled_velocity = 0.0;
-    }
+//    if(acc_limit_passed)
+//    {
+//        ROS_ERROR("Acceleration limit surpassed, sending zero velocity to the %s arm!", params_->getArmName().c_str());
+//        scaled_velocity = 0.0;
+//    }
 
     // calculate target position
     // limit step time to 50msec
@@ -821,9 +821,7 @@ bool PowerCubeCtrl::moveVel(double vel, unsigned int module_number, bool wait_fo
 
     // check joint position limits
 
-    /// check position limits
-    // TODO: add second limit "safty limit"
-    // if target position is outer limits and the command velocity is in in direction away from working range, skip command
+    // check position limits
     if ((target_pos_horizon < LowerLimits[module_number]) && (scaled_velocity < 0))
     {
         //ROS_INFO("Skipping command: %f Target position exceeds lower limit (%f) for joint %d.", target_pos_horizon[i], LowerLimits[i], i+1);
@@ -853,7 +851,7 @@ bool PowerCubeCtrl::moveVel(double vel, unsigned int module_number, bool wait_fo
         pos_temp_[module_number] = (double)pos;
 
         // TODO: this might be wrong if we are only updating one joint at a time
-        updateVelocities(pos_temp_, delta_t_);
+//        updateVelocities(pos_temp_, delta_t_);
     }
 
     else
@@ -886,7 +884,7 @@ bool PowerCubeCtrl::readState(unsigned int module_number, bool wait_for_response
     pos_temp_[module_number] = (double)pos;
 
     // TODO: this might be wrong if we are only updating one joint at a time
-    updateVelocities(pos_temp_, delta_t_);
+//    updateVelocities(pos_temp_, delta_t_);
 
     pthread_mutex_unlock(m_CAN_mutex.get());
     if(ret!=0)
