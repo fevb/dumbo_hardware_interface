@@ -255,7 +255,7 @@ bool ForceTorqueSensor::requestFT()
     int ret_val;
 
     pthread_mutex_lock(&m_CAN_mutex);
-    ret_val = request_SG_data(m_DeviceHandle, false);
+    ret_val = request_SG_data(m_DeviceHandle, true);
     pthread_mutex_unlock(&m_CAN_mutex);
 
     if(ret_val<0)
@@ -277,7 +277,7 @@ bool ForceTorqueSensor::readFT(std::vector<double> &force, std::vector<double> &
     signed short int SG[6];
 
     pthread_mutex_lock(&m_CAN_mutex);
-    ret_val = read_SG_data(m_DeviceHandle, false, &s_out_short_int[0]);
+    ret_val = read_SG_data(m_DeviceHandle, true, &s_out_short_int[0]);
     pthread_mutex_unlock(&m_CAN_mutex);
 
     if(ret_val<0)
