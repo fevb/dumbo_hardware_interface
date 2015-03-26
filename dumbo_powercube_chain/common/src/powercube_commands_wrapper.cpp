@@ -671,6 +671,77 @@ int PCube_moveStepExtended(canHandle DeviceHandle, int ModuleID, float target_po
 	return ret;
 }
 
+
+int PCube_moveStepExtendedNoRead(canHandle DeviceHandle, int ModuleID, float target_pos, unsigned short target_time)
+{
+
+    int ret = 0;
+
+    unsigned int dlc;
+    unsigned char msg[8];
+    float fangle;
+
+    struct module dumbo_cube;
+
+    dumbo_cube.handle = DeviceHandle;
+    dumbo_cube.canID = ModuleID;
+
+
+    msg[0] = PC_COMMAND_SET_MOTION;
+    msg[1] = PC_MOTION_FSTEP_ACK;
+    fangle = PCube_correctAngle(ModuleID, target_pos);
+
+    unsigned short int target_time_ = target_time;
+    dlc = set_data_float_uint16(msg, &fangle, &target_time_);
+    pc_send_command_to_module(dumbo_cube, msg, dlc);
+
+    return ret;
+}
+
+int PCube_readState(canHandle DeviceHandle, int ModuleID, unsigned long int *ShortState, unsigned char *dio, float *pos, bool wait_for_response)
+{
+    int ret = 0;
+    int res;
+    unsigned char ret_msg[8];
+    float fangle;
+
+    struct module dumbo_cube;
+
+    dumbo_cube.handle = DeviceHandle;
+    dumbo_cube.canID = ModuleID;
+
+
+    if(wait_for_response)
+    {
+        if((res=pc_listen_for_response(dumbo_cube.handle, &ret_msg))!=ModuleID)
+        {
+            ret += -1;
+        }
+        else
+        {
+            get_data_float(ret_msg,&fangle);
+        }
+    }
+
+    else
+    {
+        if((res=pc_listen_for_response_nowait(dumbo_cube.handle, &ret_msg))!=ModuleID)
+        {
+            ret += -1;
+        }
+        else
+        {
+            get_data_float(ret_msg,&fangle);
+        }
+    }
+
+    *ShortState = *ShortState | PCube_Process_ShortState(ret_msg[6]);
+    *dio = ret_msg[7];
+    *pos = PCube_correctAngle(ModuleID, fangle);
+    return ret;
+}
+
+
 int PCube_moveModuleVel(canHandle DeviceHandle, int ModuleID, float target_vel, unsigned long int *ShortState, unsigned char *dio, float *pos)
 {
 

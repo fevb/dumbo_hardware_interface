@@ -46,9 +46,12 @@ public:
                 boost::shared_ptr<pthread_mutex_t> CAN_mutex,
                 boost::shared_ptr<canHandle> CAN_handle);
 
+    PG70Gripper(boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+                boost::shared_ptr<canHandle> CAN_handle);
+
 	virtual ~PG70Gripper();
 
-	bool CloseDevice()
+    bool close()
 	{
 		if(m_CANDeviceOpened)
 		{
@@ -64,9 +67,9 @@ public:
 	}
 
 	// it is assumed that CAN communication has started with PowerCubeCtrl object
-	bool Init();
+    bool init();
 
-	bool Recover();
+    bool recover();
 
 	bool updateStates();
 

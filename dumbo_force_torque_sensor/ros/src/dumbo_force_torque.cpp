@@ -68,7 +68,7 @@ public:
 
 		if(GetROSParams())
 		{
-			m_ft_sensor = new ForceTorqueSensor(m_serial_number, m_arm_select);
+            m_ft_sensor = new ForceTorqueSensor();
 		}
 	}
 
@@ -92,39 +92,45 @@ public:
 			return false;
 		}
 
-		std::string ArmSelect;
-		if (n_.hasParam("arm_select"))
+        std::string arm_name;
+        if (n_.hasParam("arm_name"))
 		{
-			n_.getParam("arm_select", ArmSelect);
+            n_.getParam("arm_name", arm_name);
 		}
 
 		else
 		{
-			ROS_ERROR("Parameter ArmSelect not available");
+            ROS_ERROR("Parameter arm_name not available");
 			n_.shutdown();
 			return false;
 		}
 
 
 		m_serial_number = SerialNumber;
-		m_arm_select = ArmSelect;
+        m_arm_name = arm_name;
 
 		return true;
 	}
 
-	void Publish_ft()
-	{
-		geometry_msgs::Wrench ft_raw;
-		geometry_msgs::WrenchStamped ft_raw_stamped;
+    void publishFT()
+    {
+        geometry_msgs::WrenchStamped ft_raw;
+        std::vector<double> force(3, 0.0);
+        std::vector<double> torque(3, 0.0);
 
 		if(m_ft_sensor->isInitialized())
 		{
-			if(m_ft_sensor->Get_ft(ft_raw))
-			{
-				ft_raw_stamped.wrench = ft_raw;
-				ft_raw_stamped.header.stamp = ros::Time::now();
-				ft_raw_stamped.header.frame_id = "/" + m_arm_select + "_arm_ft_sensor";
-				topicPub_ft_raw_.publish(ft_raw_stamped);
+            if(m_ft_sensor->getFT(force, torque))
+            {
+                ft_raw.wrench.force.x = force[0];
+                ft_raw.wrench.force.y = force[0];
+                ft_raw.wrench.force.z = force[0];
+                ft_raw.wrench.torque.x = torque[0];
+                ft_raw.wrench.torque.y = torque[0];
+                ft_raw.wrench.torque.z = torque[0];
+                ft_raw.header.stamp = ros::Time::now();
+                ft_raw.header.frame_id = "/" + m_arm_name + "_arm_ft_sensor";
+                topicPub_ft_raw_.publish(ft_raw);
 			}
 		}
 
@@ -133,7 +139,7 @@ public:
 
 	bool srvCallback_Connect(cob_srvs::Trigger::Request &req, cob_srvs::Trigger::Response &res)
 	{
-		if(m_ft_sensor->Init())
+        if(m_ft_sensor->init(m_serial_number, m_arm_name))
 		{
 			res.success.data = true;
 			return true;
@@ -147,7 +153,7 @@ public:
 
 	bool srvCallback_Disconnect(cob_srvs::Trigger::Request &req, cob_srvs::Trigger::Response &res)
 	{
-		m_ft_sensor->Disconnect();
+        m_ft_sensor->disconnect();
 		ROS_INFO("F/T sensor disconnected.");
 		res.success.data = true;
 		return true;
@@ -156,7 +162,7 @@ public:
 
 private:
 	std::string m_serial_number;
-	std::string m_arm_select;
+    std::string m_arm_name;
 
 };
 int main(int argc, char** argv)
@@ -176,7 +182,7 @@ int main(int argc, char** argv)
 	ros::Rate loop_rate(loop_frequency); // Hz
 	while (ft_sensor_node.n_.ok())
 	{
-		ft_sensor_node.Publish_ft();
+        ft_sensor_node.publishFT();
 
 		/// sleep and waiting for messages, callbacks
 		ros::spinOnce();

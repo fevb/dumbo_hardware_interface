@@ -61,6 +61,7 @@
 #define __POWER_CUBE_CTRL_H_
 
 // standard includes
+#include <ros/ros.h>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -69,7 +70,6 @@
 
 // own includes
 #include <dumbo_powercube_chain/PowerCubeCtrlParams.h>
-#include <dumbo_powercube_chain/moveCommand.h>
 #include <kvaser_canlib/canlib.h>
 #include <boost/shared_ptr.hpp>
 
@@ -82,6 +82,10 @@ public:
 	/// Constructor
     PowerCubeCtrl(boost::shared_ptr<PowerCubeCtrlParams> params,
                   boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+                  boost::shared_ptr<canHandle> CAN_handle);
+
+    /// Constructor
+    PowerCubeCtrl(boost::shared_ptr<pthread_mutex_t> CAN_mutex,
                   boost::shared_ptr<canHandle> CAN_handle);
 
 	/// Destructor
@@ -128,7 +132,7 @@ public:
 	/*!
 	 * \brief Close
 	 */
-	bool Close();
+    bool close();
 
 	////////////////////////////
 	// Functions for control: //
@@ -147,21 +151,37 @@ public:
 	bool MoveJointSpaceSync(const std::vector<double>& angles);
 
 	/*!
-	 * \brief Moves all cubes by the given velocities
+     * \brief Moves all cubes by the given velocities and waits for feedback response from module
 	 */
     virtual bool moveVel(const std::vector<double>& velocities);
+
+    /*!
+     * \brief Moves a single module by a given velocity.
+              if wait==True then the command waits for the status response msg
+              from the module, otherwise the function call is non-blocking
+              and it does not read the status msg response from the module
+     */
+    virtual bool moveVel(double vel, unsigned int module_number, bool wait_for_response=true);
+
+    /*!
+     * \brief Reads of feedback status msg from module after sending a velocity command to it
+              read is blocking if wait_for_response is set to true (it waits
+              until the message has arrived)
+     */
+    virtual bool readState(unsigned int module_number, bool wait_for_response=true);
+
 
 	void updateVelocities(std::vector<double> pos_temp, double delta_t);
 
 	/*!
 	 * \brief Stops the Manipulator immediately
 	 */
-	bool Stop();
+    bool stop();
 
 	/*!
 	 * \brief Recovery after emergency stop or power supply failure
 	 */
-	bool Recover();
+    bool recover();
 
 	//////////////////////////////////
 	// functions to set parameters: //
@@ -237,17 +257,17 @@ public:
 	/*!
 	 * \brief Gets the current positions
 	 */
-	std::vector<double> getPositions();
+    const std::vector<double> &getPositions();
 
 	/*!
 	 * \brief Gets the current velcities
 	 */
-	std::vector<double> getVelocities();
+    const std::vector<double> &getVelocities();
 
 	/*!
 	 * \brief Gets the current accelerations
 	 */
-	std::vector<double> getAccelerations();
+    const std::vector<double> &getAccelerations();
 
 	/*!
 	 * \brief Waits until all Modules are homed.
@@ -256,8 +276,6 @@ public:
 
 
 protected:
-//	static pthread_mutex_t m_mutex;
-//	static canHandle m_DeviceHandle;
 
 	bool m_Initialized;
 	bool m_CANDeviceOpened;
@@ -265,7 +283,7 @@ protected:
     boost::shared_ptr<pthread_mutex_t> m_CAN_mutex;
     boost::shared_ptr<canHandle> m_CAN_handle;
 
-    boost::shared_ptr<PowerCubeCtrlParams> m_params;
+    boost::shared_ptr<PowerCubeCtrlParams> params_;
 	PC_CTRL_STATUS m_pc_status;
 
 	std::vector<unsigned long> m_status;
@@ -280,6 +298,15 @@ protected:
 	ros::Time m_last_time_pub;
 
 	std::string m_ErrorMessage;
+
+    // preallocated variables for moveVel command
+    std::vector<double> scaled_velocities_;
+    std::vector<float> delta_pos_;
+    std::vector<float> delta_pos_horizon_;
+    std::vector<float> target_pos_;
+    std::vector<float> target_pos_horizon_;
+    std::vector<double> pos_temp_;
+    double delta_t_;
 
 };
 

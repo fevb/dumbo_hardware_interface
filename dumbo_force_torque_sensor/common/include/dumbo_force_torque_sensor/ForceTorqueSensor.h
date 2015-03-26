@@ -36,28 +36,26 @@
 #define FORCETORQUESENSOR_H_
 
 #include <string>
+#include <vector>
 #include <kvaser_canlib/canlib.h>
-#include <geometry_msgs/Wrench.h>
-#include <geometry_msgs/WrenchStamped.h>
 #include <pthread.h>
 #include <dumbo_force_torque_sensor/ft_sensor_function.h>
-#include <eigen3/Eigen/Core>
 
 
 class ForceTorqueSensor {
 
 public:
-	// ArmSelect can be either 'left' or 'right'
-	ForceTorqueSensor(std::string Serial_Number,
-			std::string ArmSelect);
+    // arm_name can be either 'left' or 'right'
+    ForceTorqueSensor();
 
 	virtual ~ForceTorqueSensor();
 
 	// initialize and connect to the sensor
-	bool Init();
+    bool init(const std::string &serial_number,
+              const std::string &arm_name);
 
 	// disconnect from the CAN bus
-	void Disconnect();
+    bool disconnect();
 
 	bool isInitialized()
 	{
@@ -65,7 +63,17 @@ public:
 	}
 
 	// get the raw F/T measurement
-	bool Get_ft(geometry_msgs::Wrench &ft_raw);
+    bool getFT(std::vector<double> &force,
+               std::vector<double> &torque);
+
+    // requests a new FT measurement
+    // via CAN bus
+    bool requestFT();
+
+    // reads FT measurement from CAN bus
+    // after a request has been sent
+    bool readFT(std::vector<double> &force,
+                std::vector<double> &torque);
 
 protected:
 	pthread_mutex_t m_CAN_mutex;
@@ -75,9 +83,8 @@ protected:
 	bool m_CANDeviceOpened;
 
 
-	std::string m_SerialNumber;
-	std::string m_ArmSelect;
-	std::string m_sensor_frame_id;
+    std::string m_serial_number;
+    std::string m_arm_name;
 
 
 	float m_Calibration_Matrix[6][6];

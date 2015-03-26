@@ -86,14 +86,36 @@ PowerCubeCtrl::PowerCubeCtrl(boost::shared_ptr<PowerCubeCtrlParams> params,
 	m_CANDeviceOpened = false;
     m_Initialized = false;
 
-    m_params = params;
+    params_ = params;
     m_CAN_mutex = CAN_mutex;
     m_CAN_handle = CAN_handle;
 
     // TODO: fix this
-	m_horizon = 0.01; // sec
+    m_horizon = 0.1; // sec
 
 	m_last_time_pub = ros::Time::now();
+
+    m_pc_status = PC_CTRL_OK;
+
+}
+
+/*
+ * \brief Constructor
+ */
+PowerCubeCtrl::PowerCubeCtrl(boost::shared_ptr<pthread_mutex_t> CAN_mutex,
+                             boost::shared_ptr<canHandle> CAN_handle)
+{
+
+    m_CANDeviceOpened = false;
+    m_Initialized = false;
+
+    m_CAN_mutex = CAN_mutex;
+    m_CAN_handle = CAN_handle;
+
+    // TODO: fix this
+    m_horizon = 0.1; // sec
+
+    m_last_time_pub = ros::Time::now();
 
     m_pc_status = PC_CTRL_OK;
 
@@ -104,7 +126,7 @@ PowerCubeCtrl::PowerCubeCtrl(boost::shared_ptr<PowerCubeCtrlParams> params,
  */
 PowerCubeCtrl::~PowerCubeCtrl()
 {
-	Stop();
+    stop();
 	if (m_CANDeviceOpened)
 	{
         pthread_mutex_lock(m_CAN_mutex.get());
@@ -122,15 +144,29 @@ PowerCubeCtrl::~PowerCubeCtrl()
 bool PowerCubeCtrl::init()
 {
 	int ret = 0;
-	int DOF = m_params->GetDOF();
-	std::vector<int> ModulIDs = m_params->GetModuleIDs();
-	int CanBaudrate = m_params->GetBaudrate();
-	std::vector<double> MaxVel = m_params->GetMaxVel();
-	std::vector<double> MaxAcc = m_params->GetMaxAcc();
-	std::vector<double> Offsets = m_params->GetOffsets();
-	std::vector<double> LowerLimits = m_params->GetLowerLimits();
-	std::vector<double> UpperLimits = m_params->GetUpperLimits();
-	std::vector<std::string> JointNames = m_params->GetJointNames();
+    int DOF = params_->GetDOF();
+    std::vector<int> ModulIDs = params_->GetModuleIDs();
+    int CanBaudrate = params_->GetBaudrate();
+    std::vector<double> MaxVel = params_->GetMaxVel();
+    std::vector<double> MaxAcc = params_->GetMaxAcc();
+    std::vector<double> Offsets = params_->GetOffsets();
+    std::vector<double> LowerLimits = params_->GetLowerLimits();
+    std::vector<double> UpperLimits = params_->GetUpperLimits();
+    std::vector<std::string> JointNames = params_->GetJointNames();
+
+    if(isInitialized())
+    {
+        return false;
+    }
+
+    //resize moveVel command variables
+    scaled_velocities_.resize(DOF);
+    delta_pos_.resize(DOF);
+    delta_pos_horizon_.resize(DOF);
+    target_pos_.resize(DOF);
+    target_pos_horizon_.resize(DOF);
+    pos_temp_.resize(DOF);
+
 
 
 	/// Output of current settings in the terminal
@@ -139,6 +175,7 @@ bool PowerCubeCtrl::init()
 	m_dios.resize(DOF);
 	m_positions.resize(DOF);
 	m_velocities.resize(DOF);
+    m_accelerations.resize(DOF);
 
 	std::cout << "=========================================================================== " << std::endl;
 	std::cout << "PowerCubeCtrl:Init: Trying to initialize with the following parameters: " << std::endl;
@@ -182,7 +219,7 @@ bool PowerCubeCtrl::init()
 
 	std::cout << std::endl << "=========================================================================== " << std::endl;
 	std::ostringstream InitStr;
-	InitStr << (m_params->GetArmSelect()).c_str();
+    InitStr << (params_->getArmName()).c_str();
 	std::cout << "initstring = " << InitStr.str().c_str() << std::endl;
 
 	/// open device
@@ -200,7 +237,7 @@ bool PowerCubeCtrl::init()
 			ROS_ERROR("Could not open CAN device/ arm not found");
 			return false;
 		}
-		m_params->SetCanChannel(CAN_Channel);
+        params_->SetCanChannel(CAN_Channel);
 	}
 	m_CANDeviceOpened = true;
 	
@@ -212,7 +249,7 @@ bool PowerCubeCtrl::init()
     //     pthread_mutex_unlock(m_CAN_mutex.get());
 	//     if(ret<0)
 	//       {
-	// 	ROS_ERROR("Error resetting module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+    // 	ROS_ERROR("Error resetting module %d of %s arm.", ModulIDs[i], (params_->GetArmSelect().c_str()));
 	// 	return false;
 	//       }
 	//   }
@@ -227,7 +264,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 		if( (ret!=0) || (state & PC_STATE_ERROR))
 		{
-			ROS_ERROR("State error in module %d , %s arm  after opening device", ModulIDs[i], m_params->GetArmSelect().c_str());
+            ROS_ERROR("State error in module %d , %s arm  after opening device", ModulIDs[i], params_->getArmName().c_str());
 			std::ostringstream errorMsg;
 			errorMsg << "Error module state " << i;
 			m_ErrorMessage = errorMsg.str();
@@ -260,7 +297,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
-		ROS_ERROR("Error resetting module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+        ROS_ERROR("Error resetting module %d of %s arm.", ModulIDs[i], (params_->getArmName().c_str()));
 		return false;
 	      }
 
@@ -270,7 +307,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
-		ROS_ERROR("Error setting max vel module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+        ROS_ERROR("Error setting max vel module %d of %s arm.", ModulIDs[i], (params_->getArmName().c_str()));
 		return false;
 	      }
 
@@ -280,7 +317,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
-		ROS_ERROR("Error setting max acc module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+        ROS_ERROR("Error setting max acc module %d of %s arm.", ModulIDs[i], (params_->getArmName().c_str()));
 		return false;
 	      }
 
@@ -291,7 +328,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
-		ROS_ERROR("Error setting min pos module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+        ROS_ERROR("Error setting min pos module %d of %s arm.", ModulIDs[i], (params_->getArmName().c_str()));
 		return false;
 	      }
 
@@ -301,7 +338,7 @@ bool PowerCubeCtrl::init()
         pthread_mutex_unlock(m_CAN_mutex.get());
 	    if(ret<0)
 	      {
-		ROS_ERROR("Error setting max pos module %d of %s arm.", ModulIDs[i], (m_params->GetArmSelect().c_str()));
+        ROS_ERROR("Error setting max pos module %d of %s arm.", ModulIDs[i], (params_->getArmName().c_str()));
 		return false;
 	      }
 
@@ -315,12 +352,12 @@ bool PowerCubeCtrl::init()
 	{
 		float pos;
         pthread_mutex_lock(m_CAN_mutex.get());
-        ret = PCube_getModulePos(*m_CAN_handle, (int)m_params->GetModuleID(i), &pos);
+        ret = PCube_getModulePos(*m_CAN_handle, (int)params_->GetModuleID(i), &pos);
         pthread_mutex_unlock(m_CAN_mutex.get());
 		if(ret<0)
 		{
-			Stop();
-			ROS_ERROR("Error getting pos of %d module of %s arm", m_params->GetModuleID(i), m_params->GetArmSelect().c_str());
+            stop();
+            ROS_ERROR("Error getting pos of %d module of %s arm", params_->GetModuleID(i), params_->getArmName().c_str());
 			return false;
 		}
 		m_positions[i] = pos;
@@ -340,7 +377,7 @@ bool PowerCubeCtrl::init()
 	//setASyncMotion();
 	m_pc_status = PC_CTRL_OK;
 	m_Initialized = true;
-	ROS_INFO("Successfully initialized");
+    ROS_INFO("Successfully initialized");
 	return true;
 
 	// All modules initialized successfully
@@ -350,7 +387,7 @@ bool PowerCubeCtrl::init()
 /*!
  * \brief Close CAN devices
  */
-bool PowerCubeCtrl::Close()
+bool PowerCubeCtrl::close()
 {
 	if (m_CANDeviceOpened)
 	{
@@ -379,8 +416,8 @@ bool PowerCubeCtrl::Close()
 bool PowerCubeCtrl::MoveJointSpace(const std::vector<double>& target_angles)
 {
   PCTRL_CHECK_INITIALIZED();
-  std::vector<int> ModuleIDs = m_params->GetModuleIDs();
-  int DOF = m_params->GetDOF();
+  std::vector<int> ModuleIDs = params_->GetModuleIDs();
+  int DOF = params_->GetDOF();
   int ret = 0;
   float pos;
 
@@ -415,7 +452,7 @@ bool PowerCubeCtrl::MoveJointSpace(const std::vector<double>& target_angles)
 bool PowerCubeCtrl::MoveJointSpaceSync(const std::vector<double>& target)
 {
 	// PCTRL_CHECK_INITIALIZED();
-	// unsigned int DOF = m_params->GetDOF();
+    // unsigned int DOF = params_->GetDOF();
 
 	// std::vector<std::string> errorMessages;
 	// PC_CTRL_STATUS status;
@@ -441,8 +478,8 @@ bool PowerCubeCtrl::MoveJointSpaceSync(const std::vector<double>& target)
 	// 	std::vector<double> times(DOF);
 	// 	for (unsigned int i = 0; i < DOF; i++)
 	// 	{
-	// 		RampCommand rm(m_positions[i], m_velocities[i], target[i], m_params->GetMaxAcc()[i],
-	// 					   m_params->GetMaxVel()[i]);
+    // 		RampCommand rm(m_positions[i], m_velocities[i], target[i], params_->GetMaxAcc()[i],
+    // 					   params_->GetMaxVel()[i]);
 	// 		times[i] = rm.getTotalTime();
 	// 	}
 
@@ -459,7 +496,7 @@ bool PowerCubeCtrl::MoveJointSpaceSync(const std::vector<double>& target)
 	// 	}
 
 	// 	RampCommand rm_furthest(m_positions[furthest], m_velocities[furthest], target[furthest],
-        //                         m_params->GetMaxAcc()[furthest], m_params->GetMaxVel()[furthest]);
+        //                         params_->GetMaxAcc()[furthest], params_->GetMaxVel()[furthest]);
 
 	// 	double T1 = rm_furthest.T1();
 	// 	double T2 = rm_furthest.T2();
@@ -469,16 +506,16 @@ bool PowerCubeCtrl::MoveJointSpaceSync(const std::vector<double>& target)
 	// 	TG = T1 + T2 + T3;
 
 	// 	/// calculate velocity and acceleration for all joints:
-	// 	acc[furthest] = m_params->GetMaxAcc()[furthest];
-	// 	vel[furthest] = m_params->GetMaxVel()[furthest];
+    // 	acc[furthest] = params_->GetMaxAcc()[furthest];
+    // 	vel[furthest] = params_->GetMaxVel()[furthest];
 	// 	for (unsigned int i = 0; i < DOF; i++)
 	// 	{
 	// 		if (int(i) != furthest)
 	// 		{
 	// 			double a;
 	// 			double v;
-	// 			RampCommand::calculateAV(m_positions[i], m_velocities[i], target[i], TG, T3, m_params->GetMaxAcc()[i],
-	// 									 m_params->GetMaxVel()[i], a, v);
+    // 			RampCommand::calculateAV(m_positions[i], m_velocities[i], target[i], TG, T3, params_->GetMaxAcc()[i],
+    // 									 params_->GetMaxVel()[i], a, v);
 
 	// 			acc[i] = a;
 	// 			vel[i] = v;
@@ -494,7 +531,7 @@ bool PowerCubeCtrl::MoveJointSpaceSync(const std::vector<double>& target)
 	// for (unsigned int i = 0; i < DOF; i++)
 	// {
     // 	pthread_mutex_lock(m_CAN_mutex.get());
-    // 	PCube_moveRamp(*m_CAN_handle, m_params->GetModuleIDs()[i], target[i], fabs(vel[i]), fabs(acc[i]));
+    // 	PCube_moveRamp(*m_CAN_handle, params_->GetModuleIDs()[i], target[i], fabs(vel[i]), fabs(acc[i]));
     // 	pthread_mutex_unlock(m_CAN_mutex.get());
 	// }
 
@@ -518,34 +555,17 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	//== init var ==================================================
 
 	/// getting paramerters
-    unsigned int DOF = m_params->GetDOF();
-
-	std::vector<double> velocities;
-	velocities.resize(DOF);
-	velocities = vel; 				// temp var for velocity because of const reference of the function
-
-	std::vector<float> delta_pos;			// traviling distance for next command
-	std::vector<float> delta_pos_horizon;
-	delta_pos.resize(DOF);
-	delta_pos_horizon.resize(DOF);
-
-	std::vector<float> target_pos;		// absolute target postion that is desired with this command
-	std::vector<float> target_pos_horizon;
-
-	target_pos.resize(DOF);
-	target_pos_horizon.resize(DOF);
+    unsigned int DOF = params_->GetDOF();
 
 	float target_time; 	// time in milliseconds
 	float target_time_horizon;
 
-	float delta_t;			// time from the last moveVel cmd to now
-
 	/// getting limits
-	std::vector<double> LowerLimits = m_params->GetLowerLimits();
-	std::vector<double> UpperLimits = m_params->GetUpperLimits();
-	std::vector<double> maxVels = m_params->GetMaxVel();
+    const std::vector<double> &LowerLimits = params_->GetLowerLimits();
+    const std::vector<double> &UpperLimits = params_->GetUpperLimits();
+    const std::vector<double> &maxVels = params_->GetMaxVel();
 
-	std::vector<double> maxAcc = m_params->GetMaxAcc();
+    const std::vector<double> &maxAcc = params_->GetMaxAcc();
 
 	int ret; 		// temp return value holder
 	float pos; 	// temp position variable for PCube_move.. cmds
@@ -557,7 +577,7 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	sleep_time.tv_nsec = 1000000; // 1 ms
 
 	/// check dimensions
-	if (velocities.size() != DOF)
+    if (vel.size() != DOF)
 	{
 		m_ErrorMessage = "Skipping command: Commanded velocities and DOF are not same dimension.";
 		return false;
@@ -569,37 +589,30 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	double scale_temp;
 	for(unsigned int i=0; i<DOF; i++)
 	{
-		if(velocities[i] > maxVels[i])
+        if(vel[i] > maxVels[i])
 		{
-			scale_temp  = (double)velocities[i]/(double)maxVels[i];
+            scale_temp  = (double)vel[i]/(double)maxVels[i];
 			if((scale_temp > 0.0) && (scale_temp > scale)) scale = scale_temp;
 		}
 
-		else if(velocities[i]*-1.0 > maxVels[i])
+        else if(vel[i]*-1.0 > maxVels[i])
 		{
-			scale_temp = -1.0*((double)velocities[i]/(double)maxVels[i]);
+            scale_temp = -1.0*((double)vel[i]/(double)maxVels[i]);
 			if((scale_temp > 0.0) && (scale_temp > scale)) scale = scale_temp;
 		}
 	}
 
 
-	if(scale>1) ROS_WARN("Scaling down velocities by factor of %f", scale);
-
-	std::vector<double> scaled_velocities = velocities;
 	for(unsigned int i=0; (i<DOF) && (scale>1); i++)
 	{
-		scaled_velocities[i] = (double)scaled_velocities[i]/(double)scale;
+        scaled_velocities_[i] = (double)vel[i]/(double)scale;
 	}
 
 	//== calculate destination position ============================
 	// needed for limit handling and MoveStep command
 
-	delta_t = ros::Time::now().toSec() - m_last_time_pub.toSec();
+    delta_t_ = ros::Time::now().toSec() - m_last_time_pub.toSec();
 	m_last_time_pub = ros::Time::now();
-
-	std::vector<double> pos_temp;
-	pos_temp.resize(DOF);
-
 
 	//check for acceleration limits and scale
 	//todo
@@ -607,7 +620,7 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	bool acc_limit_passed = false;
 	for(unsigned int i=0; i < DOF; i++)
 	{
-		if(fabs(scaled_velocities[i] - m_velocities[i]) > fabs(maxAcc[i]))
+        if(fabs(scaled_velocities_[i] - m_velocities[i]) > fabs(maxAcc[i]))
 			acc_limit_passed = true;
 	}
 
@@ -615,8 +628,8 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	{
 		for(unsigned int i=0; i < DOF; i++)
 		{
-		  ROS_ERROR("Acceleration limit surpassed, sending zero velocity to the %s arm!", m_params->GetArmSelect().c_str());
-		  scaled_velocities[i] = 0.0;
+          ROS_ERROR("Acceleration limit surpassed, sending zero velocity to the %s arm!", params_->getArmName().c_str());
+          scaled_velocities_[i] = 0.0;
 		}
 	}
 
@@ -625,27 +638,28 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 	{
 		// limit step time to 50msec
 		//TODO: set value 0.05 as parameter
-		if (delta_t >= 0.050)
+        if (delta_t_ >= 0.050)
 		{
 			target_time = 0.050; //sec
 		}
 		else
 		{
-			target_time = delta_t;
+            target_time = delta_t_;
 		}
 
 		//add horizon to time before calculation of target position, to influence both time and position at the same time
 		target_time_horizon = target_time + (float)m_horizon; //sec
 
 
-		delta_pos_horizon[i] = target_time_horizon * scaled_velocities[i];
-		delta_pos[i] = target_time * scaled_velocities[i];
+        delta_pos_horizon_[i] = target_time_horizon * scaled_velocities_[i];
+        delta_pos_[i] = target_time * scaled_velocities_[i];
 
-		ROS_DEBUG("delta_pos[%i]: %f target_time: %f velocity[%i]: %f",i ,delta_pos[i], target_time, i, scaled_velocities[i]);
+        ROS_DEBUG("delta_pos[%i]: %f target_time: %f velocity[%i]: %f",i ,delta_pos_[i], target_time, i, scaled_velocities_[i]);
 
 		// calculate target position
-		target_pos_horizon[i] = m_positions[i] + delta_pos_horizon[i];
-		ROS_DEBUG("target_pos[%i]: %f m_position[%i]: %f",i ,target_pos[i], i, m_positions[i]);
+        target_pos_horizon_[i] = m_positions[i] + delta_pos_horizon_[i];
+        target_pos_[i] = m_positions[i] + delta_pos_[i];
+        ROS_DEBUG("target_pos[%i]: %f m_position[%i]: %f",i ,target_pos_[i], i, m_positions[i]);
 	}
 
 
@@ -658,16 +672,16 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 		/// check position limits
 		// TODO: add second limit "safty limit"
 		// if target position is outer limits and the command velocity is in in direction away from working range, skip command
-		if ((target_pos_horizon[i] < LowerLimits[i]) && (scaled_velocities[i] < 0))
+        if ((target_pos_horizon_[i] < LowerLimits[i]) && (scaled_velocities_[i] < 0))
 		{
-			ROS_INFO("Skipping command: %f Target position exceeds lower limit (%f) for joint %d.", target_pos_horizon[i], LowerLimits[i], i+1);
+            //ROS_INFO("Skipping command: %f Target position exceeds lower limit (%f) for joint %d.", target_pos_horizon[i], LowerLimits[i], i+1);
 			return true;
 		}
 
 		// if target position is outer limits and the command velocity is in in direction away from working range, skip command
-		if ((target_pos_horizon[i] > UpperLimits[i]) && (scaled_velocities[i] > 0))
+        if ((target_pos_horizon_[i] > UpperLimits[i]) && (scaled_velocities_[i] > 0))
 		{
-			ROS_INFO("Skipping command: %f Target position exceeds upper limit (%f) for joint %d.", target_pos_horizon[i], UpperLimits[i], i+1);
+            //ROS_INFO("Skipping command: %f Target position exceeds upper limit (%f) for joint %d.", target_pos_horizon[i], UpperLimits[i], i+1);
 
 			return true;
 		}
@@ -687,13 +701,13 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 
 
 //		pthread_mutex_lock(m_CAN_mutex.get());
-        ret = PCube_moveStepExtended(*m_CAN_handle, m_params->GetModuleID(i), target_pos_horizon[i], time4motion, &m_status[i], &m_dios[i], &pos);
+        ret = PCube_moveStepExtended(*m_CAN_handle, params_->GetModuleID(i), target_pos_horizon_[i], time4motion, &m_status[i], &m_dios[i], &pos);
 //		pthread_mutex_unlock(m_CAN_mutex.get());
 
 		/// error handling
 		if (ret != 0)
 		{
-			ROS_INFO("Com Error");
+            ROS_ERROR("Com Error");
 			pos = m_positions[i];
 			//m_pc_status = PC_CTRL_ERR;
 			//TODO: add error msg for diagnostics
@@ -701,19 +715,190 @@ bool PowerCubeCtrl::moveVel(const std::vector<double>& vel)
 
 		// !!! Position in pos is position before moveStep movement, to get the expected position after the movement (required as input to the next moveStep command) we add the delta position (cmd_pos) !!!
         m_positions[i] = (double)pos;
-		pos_temp[i] = (double)pos;
+        pos_temp_[i] = (double)pos;
 	}
 
-	updateVelocities(pos_temp, delta_t);
+    updateVelocities(pos_temp_, delta_t_);
 
     pthread_mutex_unlock(m_CAN_mutex.get());
 	return true;
 }
 
+bool PowerCubeCtrl::moveVel(double vel, unsigned int module_number, bool wait_for_response)
+{
+    PCTRL_CHECK_INITIALIZED();
+
+    //== init var ==================================================
+
+    /// getting paramerters
+    unsigned int DOF = params_->GetDOF();
+
+    float target_time; 	// time in milliseconds
+    float target_time_horizon;
+
+    float delta_t_;			// time from the last moveVel cmd to now
+
+    /// getting limits
+    const std::vector<double> &LowerLimits = params_->GetLowerLimits();
+    const std::vector<double> &UpperLimits = params_->GetUpperLimits();
+    const std::vector<double> &maxVels = params_->GetMaxVel();
+
+    const std::vector<double> &maxAcc = params_->GetMaxAcc();
+
+    int ret; 		// temp return value holder
+    float pos; 	// temp position variable for PCube_move.. cmds
+
+
+    struct timespec sleep_time;
+
+    sleep_time.tv_sec = 0;
+    sleep_time.tv_nsec = 1000000; // 1 ms
+
+
+    // scale down velocities to comply with max velocity limits
+    // TODO: should not scale each joint individually...
+    double scale = 1.0;
+    double scale_temp;
+
+    if(vel > maxVels[module_number])
+    {
+        scale_temp  = (double)vel/(double)maxVels[module_number];
+        if((scale_temp > 0.0) && (scale_temp > scale)) scale = scale_temp;
+    }
+
+    else if(vel*-1.0 > maxVels[module_number])
+    {
+        scale_temp = -1.0*((double)vel/(double)maxVels[module_number]);
+        if((scale_temp > 0.0) && (scale_temp > scale)) scale = scale_temp;
+    }
+
+
+
+    double scaled_velocity = vel/(double)scale;
+
+    //== calculate destination position ============================
+    // needed for limit handling and MoveStep command
+
+    delta_t_ = ros::Time::now().toSec() - m_last_time_pub.toSec();
+    m_last_time_pub = ros::Time::now();
+
+    //check for acceleration limits and scale
+    //TODO fix this max acceleration check
+
+//    bool acc_limit_passed = false;
+
+//    if(fabs(scaled_velocity - m_velocities[module_number]) > fabs(maxAcc[module_number]))
+//        acc_limit_passed = true;
+
+//    if(acc_limit_passed)
+//    {
+//        ROS_ERROR("Acceleration limit surpassed, sending zero velocity to the %s arm!", params_->getArmName().c_str());
+//        scaled_velocity = 0.0;
+//    }
+
+    // calculate target position
+    // limit step time to 50msec
+    //TODO: set value 0.05 as parameter
+    if (delta_t_ >= 0.050)
+    {
+        target_time = 0.050; //sec
+    }
+    else
+    {
+        target_time = delta_t_;
+    }
+
+    //add horizon to time before calculation of target position, to influence both time and position at the same time
+    target_time_horizon = target_time + (float)m_horizon; //sec
+
+
+    double delta_pos_horizon = target_time_horizon * scaled_velocity;
+    double delta_pos = target_time * scaled_velocity;
+
+    // calculate target position
+    double target_pos_horizon = m_positions[module_number] + delta_pos_horizon;
+    double target_pos = m_positions[module_number] + delta_pos;
+
+    // check joint position limits
+
+    // check position limits
+    if ((target_pos_horizon < LowerLimits[module_number]) && (scaled_velocity < 0))
+    {
+        //ROS_INFO("Skipping command: %f Target position exceeds lower limit (%f) for joint %d.", target_pos_horizon[i], LowerLimits[i], i+1);
+        return true;
+    }
+
+    // if target position is outer limits and the command velocity is in in direction away from working range, skip command
+    if ((target_pos_horizon > UpperLimits[module_number]) && (scaled_velocity > 0))
+    {
+        //ROS_INFO("Skipping command: %f Target position exceeds upper limit (%f) for joint %d.", target_pos_horizon[i], UpperLimits[i], i+1);
+
+        return true;
+    }
+
+
+
+    //== send velocity cmd to modules ==============================
+
+    //convert the time to int in [ms]
+    unsigned short time4motion = (unsigned short)((target_time_horizon)*1000.0);
+    pthread_mutex_lock(m_CAN_mutex.get());
+
+    if(wait_for_response)
+    {
+        ret = PCube_moveStepExtended(*m_CAN_handle, params_->GetModuleID(module_number), target_pos_horizon, time4motion, &m_status[module_number], &m_dios[module_number], &pos);
+        m_positions[module_number] = (double)pos;
+        pos_temp_[module_number] = (double)pos;
+
+        // TODO: this might be wrong if we are only updating one joint at a time
+//        updateVelocities(pos_temp_, delta_t_);
+    }
+
+    else
+    {
+        ret = PCube_moveStepExtendedNoRead(*m_CAN_handle, params_->GetModuleID(module_number), target_pos_horizon, time4motion);
+    }
+
+    /// error handling
+    if (ret != 0)
+    {
+        ROS_ERROR("Com Error");
+        pos = m_positions[module_number];
+        //m_pc_status = PC_CTRL_ERR;
+        //TODO: add error msg for diagnostics
+    }
+
+    pthread_mutex_unlock(m_CAN_mutex.get());
+    return true;
+}
+
+bool PowerCubeCtrl::readState(unsigned int module_number, bool wait_for_response)
+{
+    float pos;
+
+    pthread_mutex_lock(m_CAN_mutex.get());
+
+    int ret = PCube_readState(*m_CAN_handle, params_->GetModuleID(module_number), &m_status[module_number], &m_dios[module_number], &pos, wait_for_response);
+
+    m_positions[module_number] = (double)pos;
+    pos_temp_[module_number] = (double)pos;
+
+    // TODO: this might be wrong if we are only updating one joint at a time
+//    updateVelocities(pos_temp_, delta_t_);
+
+    pthread_mutex_unlock(m_CAN_mutex.get());
+    if(ret!=0)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 // Calculation of velocities based on vel = 1/(6*dt) * (-pos(t-3) - 3*pos(t-2) + 3*pos(t-1) + pos(t))
 void PowerCubeCtrl::updateVelocities(std::vector<double> pos_temp, double delta_t)
 {
-	unsigned int DOF = m_params->GetDOF();
+    unsigned int DOF = params_->GetDOF();
 	if(m_cached_pos.size() < 4)
 	{
 		m_cached_pos.push_back(pos_temp);
@@ -737,15 +922,12 @@ void PowerCubeCtrl::updateVelocities(std::vector<double> pos_temp, double delta_
 /*!
  * \brief Stops the manipulator immediately
  */
-bool PowerCubeCtrl::Stop()
+bool PowerCubeCtrl::stop()
 {
 	/// stop should be executed without checking any conditions
     pthread_mutex_lock(m_CAN_mutex.get());
     PCube_haltAll(*m_CAN_handle);
     pthread_mutex_unlock(m_CAN_mutex.get());
-
-	/// after halt the modules don't accept move commands any more, they first have to be reset
-    ros::Duration(0.5).sleep();
 
 	return true;
 }
@@ -753,9 +935,9 @@ bool PowerCubeCtrl::Stop()
 /*!
  * \brief Recovers the manipulator after an emergency stop
  */
-bool PowerCubeCtrl::Recover()
+bool PowerCubeCtrl::recover()
 {
-	 unsigned int DOF = m_params->GetDOF();
+     unsigned int DOF = params_->GetDOF();
 
 	  std::vector<std::string> errorMessages;
 	  PC_CTRL_STATUS status;
@@ -770,7 +952,7 @@ bool PowerCubeCtrl::Recover()
 	  {
 
           pthread_mutex_lock(m_CAN_mutex.get());
-          ret = PCube_resetModule(*m_CAN_handle, m_params->GetModuleID(i));
+          ret = PCube_resetModule(*m_CAN_handle, params_->GetModuleID(i));
           pthread_mutex_unlock(m_CAN_mutex.get());
 	  }
 
@@ -801,7 +983,7 @@ bool PowerCubeCtrl::Recover()
 	  {
 		  m_ErrorMessage.assign("");
 
-	    for (int i = 0; i < m_params->GetDOF(); i++)
+        for (int i = 0; i < params_->GetDOF(); i++)
 			{
 			  m_ErrorMessage.append(errorMessages[i]);
 			}
@@ -822,14 +1004,14 @@ bool PowerCubeCtrl::Recover()
 bool PowerCubeCtrl::setMaxVelocity(double maxVelocity)
 {
 	PCTRL_CHECK_INITIALIZED();
-	for (int i = 0; i < m_params->GetDOF(); i++)
+    for (int i = 0; i < params_->GetDOF(); i++)
 	{
         pthread_mutex_lock(m_CAN_mutex.get());
-        PCube_setMaxVel(*m_CAN_handle, m_params->GetModuleID(i), maxVelocity);
+        PCube_setMaxVel(*m_CAN_handle, params_->GetModuleID(i), maxVelocity);
         pthread_mutex_unlock(m_CAN_mutex.get());
 
 		std::vector<double> maxVelocities(maxVelocity);
-		m_params->SetMaxVel(maxVelocities);
+        params_->SetMaxVel(maxVelocities);
 	}
 
 
@@ -843,14 +1025,14 @@ bool PowerCubeCtrl::setMaxVelocity(const std::vector<double>& maxVelocities)
 {
   PCTRL_CHECK_INITIALIZED();
 
-  for (int i = 0; i < m_params->GetDOF(); i++)
+  for (int i = 0; i < params_->GetDOF(); i++)
     {
       pthread_mutex_lock(m_CAN_mutex.get());
-      PCube_setMaxVel(*m_CAN_handle, m_params->GetModuleID(i), maxVelocities[i]);
+      PCube_setMaxVel(*m_CAN_handle, params_->GetModuleID(i), maxVelocities[i]);
       pthread_mutex_unlock(m_CAN_mutex.get());
     }
 	
-  m_params->SetMaxVel(maxVelocities);
+  params_->SetMaxVel(maxVelocities);
 
   return true;
 }
@@ -864,13 +1046,13 @@ bool PowerCubeCtrl::setMaxAcceleration(double maxAcceleration)
 {
 	PCTRL_CHECK_INITIALIZED();
 
-	for (int i = 0; i < m_params->GetDOF(); i++)
+    for (int i = 0; i < params_->GetDOF(); i++)
 	{
         pthread_mutex_lock(m_CAN_mutex.get());
-        PCube_setMaxAcc(*m_CAN_handle, m_params->GetModuleID(i), maxAcceleration);
+        PCube_setMaxAcc(*m_CAN_handle, params_->GetModuleID(i), maxAcceleration);
         pthread_mutex_unlock(m_CAN_mutex.get());
 		std::vector<double> maxAccelerations(maxAcceleration);
-		m_params->SetMaxAcc(maxAccelerations);
+        params_->SetMaxAcc(maxAccelerations);
 	}
 
 	return true;
@@ -883,13 +1065,13 @@ bool PowerCubeCtrl::setMaxAcceleration(const std::vector<double>& maxAcceleratio
 {
 	PCTRL_CHECK_INITIALIZED();
 
-	for (int i = 0; i < m_params->GetDOF(); i++)
+    for (int i = 0; i < params_->GetDOF(); i++)
 	{
         pthread_mutex_lock(m_CAN_mutex.get());
-        PCube_setMaxAcc(*m_CAN_handle, m_params->GetModuleID(i), maxAccelerations[i]);
+        PCube_setMaxAcc(*m_CAN_handle, params_->GetModuleID(i), maxAccelerations[i]);
         pthread_mutex_unlock(m_CAN_mutex.get());
 	}
-	m_params->SetMaxAcc(maxAccelerations);
+    params_->SetMaxAcc(maxAccelerations);
 	return true;
 }
 
@@ -926,18 +1108,18 @@ bool PowerCubeCtrl::setSyncMotion()
 {
 	if (m_CANDeviceOpened)
 	{
-		for (int i = 0; i < m_params->GetDOF(); i++)
+        for (int i = 0; i < params_->GetDOF(); i++)
 		{
 			unsigned long int confword;
 
 			/// get config
             pthread_mutex_lock(m_CAN_mutex.get());
-            PCube_getConfig(*m_CAN_handle, m_params->GetModuleID(i), &confword);
+            PCube_getConfig(*m_CAN_handle, params_->GetModuleID(i), &confword);
             pthread_mutex_unlock(m_CAN_mutex.get());
 
 			/// set config to synchronous
             pthread_mutex_lock(m_CAN_mutex.get());
-            PCube_setConfig(*m_CAN_handle, m_params->GetModuleID(i), confword | PC_CONFIGID_MOD_SYNC_MOTION);
+            PCube_setConfig(*m_CAN_handle, params_->GetModuleID(i), confword | PC_CONFIGID_MOD_SYNC_MOTION);
             pthread_mutex_unlock(m_CAN_mutex.get());
 		}
 		return true;
@@ -958,18 +1140,18 @@ bool PowerCubeCtrl::setASyncMotion()
 {
 	if (m_CANDeviceOpened)
 	{
-		for (int i = 0; i < m_params->GetDOF(); i++)
+        for (int i = 0; i < params_->GetDOF(); i++)
 		{
 			unsigned long int confword;
 
 			/// get config
             pthread_mutex_lock(m_CAN_mutex.get());
-            PCube_getConfig(*m_CAN_handle, m_params->GetModuleID(i), &confword);
+            PCube_getConfig(*m_CAN_handle, params_->GetModuleID(i), &confword);
             pthread_mutex_unlock(m_CAN_mutex.get());
 
 			/// set config to asynchronous
             pthread_mutex_lock(m_CAN_mutex.get());
-            PCube_setConfig(*m_CAN_handle, m_params->GetModuleID(i), confword & (~PC_CONFIGID_MOD_SYNC_MOTION));
+            PCube_setConfig(*m_CAN_handle, params_->GetModuleID(i), confword & (~PC_CONFIGID_MOD_SYNC_MOTION));
             pthread_mutex_unlock(m_CAN_mutex.get());
 		}
 		return true;
@@ -987,7 +1169,7 @@ bool PowerCubeCtrl::setASyncMotion()
 bool PowerCubeCtrl::updateStates()
 {
 	PCTRL_CHECK_INITIALIZED();
-	unsigned int DOF = m_params->GetDOF();
+    unsigned int DOF = params_->GetDOF();
 	unsigned long state;
 	PC_CTRL_STATUS pc_status = PC_CTRL_ERR;
 	std::vector<std::string> ErrorMessages;
@@ -1002,7 +1184,7 @@ bool PowerCubeCtrl::updateStates()
 		ros::Duration(0.001).sleep();
 		state = m_status[i];
         pthread_mutex_lock(m_CAN_mutex.get());
-        ret = PCube_getStateDioPos(*m_CAN_handle, m_params->GetModuleID(i), &state, &dio, &position);
+        ret = PCube_getStateDioPos(*m_CAN_handle, params_->GetModuleID(i), &state, &dio, &position);
         pthread_mutex_unlock(m_CAN_mutex.get());
 
 		if (ret != 0)
@@ -1049,8 +1231,8 @@ bool PowerCubeCtrl::updateStates()
  */
 bool PowerCubeCtrl::getStatus(PC_CTRL_STATUS& status, std::vector<std::string>& errorMessages)
 {
-	unsigned int DOF = m_params->GetDOF();
-	std::vector<int> ModuleIDs = m_params->GetModuleIDs();
+    unsigned int DOF = params_->GetDOF();
+    std::vector<int> ModuleIDs = params_->GetModuleIDs();
 
 	errorMessages.clear();
 	errorMessages.resize(DOF);
@@ -1110,7 +1292,7 @@ bool PowerCubeCtrl::statusMoving()
 {
 	PCTRL_CHECK_INITIALIZED();
 
-	for (int i = 0; i < m_params->GetDOF(); i++)
+    for (int i = 0; i < params_->GetDOF(); i++)
 	{
 		if (m_status[i] & STATEID_MOD_MOTION)
 			return true;
@@ -1121,7 +1303,7 @@ bool PowerCubeCtrl::statusMoving()
 /*!
  * \brief Gets the current positions
  */
-std::vector<double> PowerCubeCtrl::getPositions()
+const std::vector<double> &PowerCubeCtrl::getPositions()
 {
 	return m_positions;
 }
@@ -1129,7 +1311,7 @@ std::vector<double> PowerCubeCtrl::getPositions()
 /*!
  * \brief Gets the current velocities
  */
-std::vector<double> PowerCubeCtrl::getVelocities()
+const std::vector<double> &PowerCubeCtrl::getVelocities()
 {
 	/// ToDo: calculate new velocities before returning
 	return m_velocities;
@@ -1138,7 +1320,7 @@ std::vector<double> PowerCubeCtrl::getVelocities()
 /*!
  * \brief Gets the current positions
  */
-std::vector<double> PowerCubeCtrl::getAccelerations()
+const std::vector<double> &PowerCubeCtrl::getAccelerations()
 {
 	/// ToDo: calculate new accelerations before returning
 	return m_accelerations;
@@ -1149,8 +1331,8 @@ std::vector<double> PowerCubeCtrl::getAccelerations()
  */
 bool PowerCubeCtrl::doHoming()
 {
-  unsigned int DOF = m_params->GetDOF();
-  std::vector<int> ModuleIDs = m_params->GetModuleIDs();
+  unsigned int DOF = params_->GetDOF();
+  std::vector<int> ModuleIDs = params_->GetModuleIDs();
   bool homed = 0;
   int counter = 0;
   unsigned long int state;
@@ -1186,7 +1368,7 @@ bool PowerCubeCtrl::doHoming()
           pthread_mutex_unlock(m_CAN_mutex.get());
 		  if(state & PC_STATE_ERROR)
 		  {
-		    ROS_ERROR("State error module %d, %s arm after homing", ModuleIDs[i], m_params->GetArmSelect().c_str());
+            ROS_ERROR("State error module %d, %s arm after homing", ModuleIDs[i], params_->getArmName().c_str());
 			  m_pc_status = PC_CTRL_NOT_HOMED;
 			  return false;
 		  }
@@ -1205,6 +1387,6 @@ bool PowerCubeCtrl::doHoming()
 
   // modules successfully homed
   m_pc_status = PC_CTRL_OK;
-  ROS_INFO("%s arm successfully homed.", (m_params->GetArmSelect()).c_str());
+  ROS_INFO("%s arm successfully homed.", (params_->getArmName().c_str()));
   return true;
 }

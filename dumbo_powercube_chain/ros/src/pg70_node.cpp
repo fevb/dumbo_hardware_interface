@@ -84,23 +84,23 @@ void PG70Node::getROSParameters()
 	}
 
 	/// Get arm selection parameter (left or right arm)
-	XmlRpc::XmlRpcValue ArmSelectXmlRpc;
-	std::string ArmSelect;
-	if (n_.hasParam("arm_select"))
+    XmlRpc::XmlRpcValue ArmNameXmlRpc;
+    std::string arm_name;
+    if (n_.hasParam("arm_name"))
 	{
-		n_.getParam("arm_select", ArmSelectXmlRpc);
+        n_.getParam("arm_name", ArmNameXmlRpc);
 	}
 
 	else
 	{
-		ROS_ERROR("Parameter arm_select not set in /PG70_controller, shutting down node...");
+        ROS_ERROR("Parameter arm_name not set in /PG70_controller, shutting down node...");
 		n_.shutdown();
 	}
 
-	ArmSelect = (std::string)(ArmSelectXmlRpc);
-	if((ArmSelect!="left") && (ArmSelect!="right"))
+    arm_name = (std::string)(ArmNameXmlRpc);
+    if((arm_name!="left") && (arm_name!="right"))
 	{
-		ROS_ERROR("Invalid arm_select parameter in /PG70_controller, shutting down node... ");
+        ROS_ERROR("Invalid arm_name parameter in /PG70_controller, shutting down node... ");
 		n_.shutdown();
 	}
 
@@ -183,7 +183,7 @@ void PG70Node::getROSParameters()
     }
 
     pg70_params_->Init(CanBaudrate, ModulIDs);
-    pg70_params_->SetArmSelect(ArmSelect);
+    pg70_params_->setArmName(arm_name);
     pg70_params_->SetJointNames(JointNames);
     pg70_params_->SetMaxAcc(MaxAccelerations);
     pg70_params_->SetSerialNumber((unsigned long int) SerialNumber);
@@ -278,7 +278,7 @@ bool PG70Node::srvCallback_Init(cob_srvs::Trigger::Request &req, cob_srvs::Trigg
 	{
 		ROS_INFO("Initializing PG70 gripper...");
 
-		if(pg70_ctrl_->Init())
+        if(pg70_ctrl_->init())
 		{
 			initialized_ = true;
 			res.success.data = true;
@@ -288,7 +288,7 @@ bool PG70Node::srvCallback_Init(cob_srvs::Trigger::Request &req, cob_srvs::Trigg
 
 		else
 		{
-			ROS_ERROR("Couldn't initialize PG70 gripper on %s arm.", pg70_params_->GetArmSelect().c_str());
+            ROS_ERROR("Couldn't initialize PG70 gripper on %s arm.", pg70_params_->getArmName().c_str());
 			initialized_ = false;
 			res.success.data = false;
 		}
@@ -344,7 +344,7 @@ bool PG70Node::srvCallback_Recover(cob_srvs::Trigger::Request &req,
 	if (initialized_)
 	{
 		/// stopping all arm movements
-		if (pg70_ctrl_->Recover())
+        if (pg70_ctrl_->recover())
 		{
 			error_ = false;
 			error_msg_ = "";
@@ -416,7 +416,7 @@ void PG70Node::topicCallbackCommandPos(const brics_actuator::JointPositions::Con
 		/// command position to gripper
         if (!pg70_ctrl_->movePos(cmd_gripper_pos))
 		{
-			ROS_ERROR("Error executing gripper position command in %s arm.", (pg70_params_->GetArmSelect()).c_str());
+            ROS_ERROR("Error executing gripper position command in %s arm.", (pg70_params_->getArmName()).c_str());
 			//			  error_ = true;
 			//			  error_msg_ = pc_ctrl_->getErrorMessage();
 			//			  ROS_ERROR("Skipping command: %s",pc_ctrl_->getErrorMessage().c_str());//*** have to fix this
@@ -433,7 +433,7 @@ void PG70Node::topicCallbackCommandPos(const brics_actuator::JointPositions::Con
 
 	else if (pg70_params_->GetDOF()==0)
 	{
-		ROS_ERROR("Skipping gripper positions command: no gripper on %s arm.", (pg70_params_->GetArmSelect()).c_str());
+        ROS_ERROR("Skipping gripper positions command: no gripper on %s arm.", (pg70_params_->getArmName()).c_str());
 	}
 
 }
@@ -475,7 +475,7 @@ void PG70Node::topicCallbackCommandVel(const brics_actuator::JointVelocities::Co
         /// command velocity to gripper
         if (!pg70_ctrl_->moveVel(cmd_gripper_vel))
         {
-            ROS_ERROR("Error executing gripper velocity command in %s arm.", (pg70_params_->GetArmSelect()).c_str());
+            ROS_ERROR("Error executing gripper velocity command in %s arm.", (pg70_params_->getArmName()).c_str());
             return;
         }
         publishState(false);
@@ -489,7 +489,7 @@ void PG70Node::topicCallbackCommandVel(const brics_actuator::JointVelocities::Co
 
     else if (pg70_params_->GetDOF()==0)
     {
-        ROS_ERROR("Skipping gripper positions command: no gripper on %s arm.", (pg70_params_->GetArmSelect()).c_str());
+        ROS_ERROR("Skipping gripper positions command: no gripper on %s arm.", (pg70_params_->getArmName()).c_str());
     }
 
 
@@ -507,7 +507,7 @@ bool PG70Node::srvCallback_CloseGripper(dumbo_srvs::ClosePG70Gripper::Request &r
 
 	else
 	{
-		ROS_ERROR("Error trying to close gripper on %s arm", pg70_params_->GetArmSelect().c_str());
+        ROS_ERROR("Error trying to close gripper on %s arm", pg70_params_->getArmName().c_str());
 		res.success = false;
 	}
 

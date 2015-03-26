@@ -7,7 +7,7 @@ catkin_package(
   DEPENDS eigen
   CATKIN_DEPENDS geometry_msgs kvaser_canlib cob_srvs dumbo_powercube_chain
   INCLUDE_DIRS common/include
-  LIBRARIES 
+  LIBRARIES dumbo_force_torque_sensor
 )
 
 include_directories(
@@ -25,7 +25,11 @@ set_target_properties(dumbo_force_torque PROPERTIES COMPILE_FLAGS "-D__LINUX__")
 add_executable(getserialnumber test/getserialnumber.cpp common/src/ForceTorqueSensor.cpp common/src/ComunicationCanx.cpp common/src/ft_sensor_function.cpp)
 target_link_libraries(getserialnumber rt canlib ${catkin_LIBRARIES})
 
-install(TARGETS dumbo_force_torque getserialnumber
+add_library(dumbo_force_torque_sensor common/src/ForceTorqueSensor.cpp common/src/ComunicationCanx.cpp common/src/ft_sensor_function.cpp)
+target_link_libraries(dumbo_force_torque_sensor canlib ${catkin_LIBRARIES})
+
+install(TARGETS dumbo_force_torque getserialnumber dumbo_force_torque_sensor
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

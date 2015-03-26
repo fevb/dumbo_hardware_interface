@@ -98,6 +98,12 @@ int PCube_moveModulePos(canHandle DeviceHandle, int ModuleID, const float target
 
 int PCube_moveStepExtended(canHandle DeviceHandle, int ModuleID, float target_pos, unsigned short target_time, unsigned long int *ShortState, unsigned char *dio, float *pos);
 
+// same as previous command but doesn't wait for the reply from the module
+int PCube_moveStepExtendedNoRead(canHandle DeviceHandle, int ModuleID, float target_pos, unsigned short target_time);
+
+// to be executed after a motion command on a module to catch the feedback msg from the module
+int PCube_readState(canHandle DeviceHandle, int ModuleID, unsigned long int *ShortState, unsigned char *dio, float *pos, bool wait_for_response=true);
+
 int PCube_moveModuleVel(canHandle DeviceHandle, int ModuleID, float target_vel, unsigned long int *ShortState, unsigned char *dio, float *pos);
 
 int PCube_startMotionAll(canHandle DeviceHandle);

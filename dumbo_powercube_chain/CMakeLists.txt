@@ -11,7 +11,7 @@ catkin_package(
   DEPENDS 
   CATKIN_DEPENDS cob_srvs sensor_msgs control_msgs urdf diagnostic_updater kvaser_canlib brics_actuator diagnostic_msgs dumbo_srvs schunk_sdh
   INCLUDE_DIRS common/include
-  LIBRARIES powercube_commands
+  LIBRARIES powercube_commands powercube_ctrl
 )
 
 include_directories(
@@ -44,8 +44,11 @@ target_link_libraries(test_hand rt ${SDHLib} ${catkin_LIBRARIES}  ${Boost_LIBRAR
 set_target_properties(test_hand PROPERTIES COMPILE_FLAGS "-D__LINUX__ -DWITH_ESD_CAN -DOSNAME_LINUX")
 add_dependencies(test_hand cob_srvs_gencpp brics_actuator_gencpp schunk_sdh_gencpp dumbo_srvs_gencpp)
 
+add_library(powercube_ctrl common/src/PG70Gripper.cpp common/src/PowerCubeCtrl.cpp common/src/powercube_commands_wrapper.cpp common/src/collision.c common/src/dumbo_kinematics.c common/src/homogenic_vectors.c)
+target_link_libraries(powercube_ctrl powercube_commands ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 
-install(TARGETS ${PROJECT_NAME} test_hand test_movevel
+
+install(TARGETS ${PROJECT_NAME} test_hand test_movevel powercube_ctrl
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
